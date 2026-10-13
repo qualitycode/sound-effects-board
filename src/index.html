@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' media: data:; media-src media:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sound Effects Board</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="toolbar">
+    <h1>Sound Effects Board</h1>
+    <div class="toolbar-actions">
+      <button id="addBtn" class="btn primary hidden" type="button">+ Add Sound</button>
+      <button id="editToggle" class="btn" type="button" aria-pressed="false">Edit Mode: Off</button>
+      <button id="stopAll" class="btn danger" type="button" title="Stop all sounds (Esc)">■ Stop All</button>
+    </div>
+  </header>
+
+  <p id="hint" class="hint"></p>
+  <main id="board" class="board" aria-label="Sound effect pads"></main>
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <dialog id="editor" class="editor">
+    <form id="editorForm" method="dialog" novalidate>
+      <h2 id="editorTitle">Edit Sound</h2>
+
+      <label class="field">
+        <span>Name</span>
+        <input id="fLabel" type="text" maxlength="100" autocomplete="off" placeholder="e.g. Door Slam">
+      </label>
+
+      <div class="field">
+        <span>Sound file</span>
+        <div class="row">
+          <span id="fSoundName" class="filename">(none chosen)</span>
+          <button id="fSoundPick" class="btn" type="button">Choose…</button>
+          <button id="fSoundTest" class="btn" type="button">▶ Test</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Picture (optional)</span>
+        <div class="row">
+          <img id="fImagePreview" class="thumb hidden" alt="">
+          <span id="fImageName" class="filename">(none)</span>
+          <button id="fImagePick" class="btn" type="button">Choose…</button>
+          <button id="fImageClear" class="btn" type="button">Remove</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Volume: <output id="fVolumeOut">100%</output></span>
+        <input id="fVolume" type="range" min="0" max="100" value="100">
+      </label>
+
+      <label class="field check">
+        <input id="fLoop" type="checkbox">
+        <span>Loop (click once to start, click again to stop)</span>
+      </label>
+
+      <div class="field">
+        <span>Keyboard shortcut (optional)</span>
+        <div class="row">
+          <input id="fKey" type="text" class="key-input" readonly placeholder="press a key">
+          <button id="fKeyClear" class="btn" type="button">Clear</button>
+        </div>
+      </div>
+
+      <p id="editorError" class="error hidden" role="alert"></p>
+
+      <div class="actions">
+        <button id="fDelete" class="btn danger" type="button">Delete</button>
+        <span class="spacer"></span>
+        <button id="fCancel" class="btn" type="button">Cancel</button>
+        <button id="fSave" class="btn primary" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

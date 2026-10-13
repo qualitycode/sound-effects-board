@@ -1,0 +1,53 @@
+{
+  "name": "sound-effects-board",
+  "productName": "Sound Effects Board",
+  "version": "1.0.0",
+  "description": "Offline soundboard for radio plays: click a pad, hear a sound effect.",
+  "main": "main.js",
+  "author": "Sound Effects Board",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "postinstall": "node node_modules/electron/install.js",
+    "start": "electron .",
+    "samples": "node scripts/make-samples.js",
+    "icon": "node scripts/make-icon.js",
+    "dist:mac": "electron-builder --mac --x64 --arm64 --publish never",
+    "dist:win": "electron-builder --win --x64 --publish never"
+  },
+  "build": {
+    "appId": "com.soundeffectsboard.app",
+    "productName": "Sound Effects Board",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dmg"
+      ],
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "title": "Sound Effects Board"
+    },
+    "win": {
+      "target": [
+        "dir"
+      ]
+    },
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  }
+}
