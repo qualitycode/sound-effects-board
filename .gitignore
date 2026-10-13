@@ -8,3 +8,5 @@ Thumbs.db
 # Downloaded sound files are licensed for use in the app, not for republishing
 soundpack/
 *.zip
+# Play script and cue list (not ours to republish)
+assets/playScript/
