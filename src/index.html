@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' media: data:; media-src media:;">
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' media: data:; media-src media:; connect-src media:;">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sound Effects Board - Created by Larry Maddocks</title>
   <link rel="stylesheet" href="styles.css">
@@ -52,8 +52,8 @@
       </div>
 
       <label class="field">
-        <span>Volume: <output id="fVolumeOut">100%</output></span>
-        <input id="fVolume" type="range" min="0" max="100" value="100">
+        <span>Volume: <output id="fVolumeOut">100%</output> (over 100% boosts quiet sounds)</span>
+        <input id="fVolume" type="range" min="0" max="300" value="100">
       </label>
 
       <label class="field check">

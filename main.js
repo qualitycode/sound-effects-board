@@ -5,13 +5,14 @@ const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'media', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+  { scheme: 'media', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
 ]);
 
 const SAMPLES_DIR = path.join(__dirname, 'assets', 'samples');
 const AUDIO_EXTS = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'oga', 'flac', 'aif', 'aiff'];
 const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
 const MAX_RECORDING_BYTES = 50 * 1024 * 1024;
+const MAX_VOLUME = 3;
 
 let mainWindow = null;
 
@@ -43,7 +44,7 @@ function sanitizePad(p) {
     label: cleanString(p && p.label, 100),
     sound: cleanFileName(p && p.sound),
     image: cleanFileName(p && p.image),
-    volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1,
+    volume: Number.isFinite(volume) ? Math.min(MAX_VOLUME, Math.max(0, volume)) : 1,
     loop: Boolean(p && p.loop),
     key: key.trim(),
   };
@@ -169,18 +170,175 @@ function registerMicPermission() {
 }
 
 function registerMediaProtocol() {
-  protocol.handle('media', (request) => {
+  protocol.handle('media', async (request) => {
     const name = path.basename(decodeURIComponent(new URL(request.url).pathname));
     const file = path.join(mediaDir(), name);
     if (!name || !fs.existsSync(file)) return new Response('Not found', { status: 404 });
-    return net.fetch(pathToFileURL(file).toString(), { headers: request.headers });
+    const upstream = await net.fetch(pathToFileURL(file).toString(), { headers: request.headers });
+    // The page is a file:// origin, so Web Audio needs explicit permission to read these sounds.
+    const headers = new Headers(upstream.headers);
+    headers.set('Access-Control-Allow-Origin', '*');
+    return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
   });
+}
+
+// ---------- Sound packs (a folder with pack.json + sound/picture files) ----------
+
+const PACK_FILE = 'pack.json';
+
+function slugify(text) {
+  return String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'sound';
+}
+
+// A zip often unpacks to a folder inside a folder, so look one level down too.
+function findPackFolder(folder) {
+  if (fs.existsSync(path.join(folder, PACK_FILE))) return folder;
+  for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
+    if (entry.isDirectory() && fs.existsSync(path.join(folder, entry.name, PACK_FILE))) {
+      return path.join(folder, entry.name);
+    }
+  }
+  return null;
+}
+
+function copyFromPack(folder, name, exts) {
+  if (typeof name !== 'string' || !name) return null;
+  const base = path.basename(name);
+  const ext = path.extname(base).slice(1).toLowerCase();
+  const src = path.join(folder, base);
+  if (!exts.includes(ext) || !fs.existsSync(src) || !fs.statSync(src).isFile()) return null;
+  const stored = `${crypto.randomUUID()}.${ext}`;
+  fs.copyFileSync(src, path.join(mediaDir(), stored));
+  return stored;
+}
+
+function importPack(selected) {
+  const folder = findPackFolder(selected);
+  if (!folder) throw new Error(`That folder does not contain a ${PACK_FILE} file. Choose the folder that has ${PACK_FILE} inside it.`);
+  let entries;
+  try {
+    entries = JSON.parse(fs.readFileSync(path.join(folder, PACK_FILE), 'utf8')).pads;
+  } catch {
+    throw new Error(`${PACK_FILE} could not be read.`);
+  }
+  if (!Array.isArray(entries)) throw new Error(`${PACK_FILE} does not contain a list of sounds.`);
+
+  const pads = loadPads();
+  const labels = new Set(pads.map((p) => p.label.toLowerCase()));
+  const usedKeys = new Set(pads.map((p) => p.key).filter(Boolean));
+  const result = { added: 0, duplicates: 0, invalid: 0, keysCleared: 0 };
+
+  for (const e of entries) {
+    const label = cleanString(e && e.label, 100).trim();
+    if (!label) { result.invalid++; continue; }
+    if (labels.has(label.toLowerCase())) { result.duplicates++; continue; }
+    const sound = copyFromPack(folder, e.file, AUDIO_EXTS);
+    if (!sound) { result.invalid++; continue; }
+    const image = copyFromPack(folder, e.image, IMAGE_EXTS);
+    let key = cleanString(e.key, 1).toUpperCase().trim();
+    if (key && usedKeys.has(key)) { key = ''; result.keysCleared++; }
+    if (key) usedKeys.add(key);
+    labels.add(label.toLowerCase());
+    pads.push(sanitizePad({ label, sound, image, volume: e.volume, loop: e.loop, key }));
+    result.added++;
+  }
+
+  writeJsonAtomic(padsFile(), { pads });
+  return { ...result, pads };
+}
+
+function exportPack(parentFolder) {
+  const pads = loadPads();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const baseName = `Sound Effects Board Pack ${stamp}`;
+  let folder = path.join(parentFolder, baseName);
+  for (let n = 2; fs.existsSync(folder); n++) folder = path.join(parentFolder, `${baseName} (${n})`);
+  fs.mkdirSync(folder);
+
+  const taken = new Set([PACK_FILE]);
+  const copyOut = (stored, label) => {
+    if (!stored) return null;
+    const src = path.join(mediaDir(), stored);
+    if (!fs.existsSync(src)) return null;
+    const ext = path.extname(stored);
+    let name = `${slugify(label)}${ext}`;
+    for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${slugify(label)}-${n}${ext}`;
+    taken.add(name.toLowerCase());
+    fs.copyFileSync(src, path.join(folder, name));
+    return name;
+  };
+
+  const out = [];
+  let skipped = 0;
+  for (const p of pads) {
+    const file = copyOut(p.sound, p.label);
+    if (!file) { skipped++; continue; }
+    const entry = { label: p.label, file, volume: p.volume, loop: p.loop, key: p.key };
+    const image = copyOut(p.image, `${p.label} picture`);
+    if (image) entry.image = image;
+    out.push(entry);
+  }
+  writeJsonAtomic(path.join(folder, PACK_FILE), { pads: out });
+  return { folder, count: out.length, skipped };
+}
+
+async function importPackFromMenu() {
+  const picked = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose the sound pack folder',
+    message: `Choose the folder that contains ${PACK_FILE}`,
+    properties: ['openDirectory'],
+  });
+  if (picked.canceled || !picked.filePaths.length) return;
+  try {
+    const r = importPack(picked.filePaths[0]);
+    if (mainWindow) mainWindow.webContents.send('pads:replaced', r.pads);
+    const notes = [];
+    if (r.duplicates) notes.push(`${r.duplicates} already on your board (skipped)`);
+    if (r.invalid) notes.push(`${r.invalid} could not be read (skipped)`);
+    if (r.keysCleared) notes.push(`${r.keysCleared} keyboard shortcut(s) were already in use and were left blank`);
+    await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      message: r.added ? `Added ${r.added} sound${r.added === 1 ? '' : 's'} to your board.` : 'No new sounds were added.',
+      detail: notes.join('\n'),
+    });
+  } catch (err) {
+    await dialog.showMessageBox(mainWindow, { type: 'error', message: 'Could not import the sound pack.', detail: err.message });
+  }
+}
+
+async function exportPackFromMenu() {
+  const picked = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose where to save the sound pack',
+    message: 'A new folder with your sounds will be created inside the folder you choose',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (picked.canceled || !picked.filePaths.length) return;
+  try {
+    const r = exportPack(picked.filePaths[0]);
+    await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      message: `Saved ${r.count} sound${r.count === 1 ? '' : 's'}.`,
+      detail: `${r.folder}${r.skipped ? `\n\n${r.skipped} pad(s) had no sound file and were left out.` : ''}`,
+    });
+    shell.showItemInFolder(path.join(r.folder, PACK_FILE));
+  } catch (err) {
+    await dialog.showMessageBox(mainWindow, { type: 'error', message: 'Could not save the sound pack.', detail: err.message });
+  }
 }
 
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   const template = [
     ...(isMac ? [{ role: 'appMenu' }] : []),
+    {
+      label: 'File',
+      submenu: [
+        { id: 'importPack', label: 'Import Sound Pack…', click: importPackFromMenu },
+        { id: 'exportPack', label: 'Export Board as Sound Pack…', click: exportPackFromMenu },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ],
+    },
     { role: 'editMenu' },
     {
       label: 'View',

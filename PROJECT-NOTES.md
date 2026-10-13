@@ -63,9 +63,10 @@ GitHub repo > **Actions** > **Build Mac app** (runs automatically on push, or us
 
 - `soundpack/` holds sounds downloaded from Mixkit (Mixkit Sound Effects Free License), plus `pack.json` (pad names, keys, loop, volume) and `CREDITS.md` (source of every file).
 - It is **git-ignored on purpose**: the license allows using the sounds in the app but not republishing the raw files, so they must not go into the public repo.
-- The pilot (11 sounds: doors, wind, clock chimes, knock, keys/lock, cobblestone footsteps, fireplace, small bells) was loaded into the app's data folder on the Windows laptop only (`%APPDATA%\Sound Effects Board`). The Mac does not have these sounds yet.
+- The pilot (11 sounds: doors, wind, clock chimes, knock, keys/lock, cobblestone footsteps, fireplace, small bells) was loaded into the app's data folder on the Windows laptop (`%APPDATA%\Sound Effects Board`). `SoundPack.zip` (project root, git-ignored) is the same pack zipped for the Mac.
+- **Getting it onto the Mac:** unzip `SoundPack.zip` there, then in the app use **File > Import Sound Pack…** and choose the unzipped folder. The same menu has **Export Board as Sound Pack…** for backups. The Mac needs the new build first (push to GitHub, download from Actions).
+- Volume now goes up to 300% (Web Audio gain + limiter), because some downloads are very quiet (the fireplace file is about 35 dB below the door sounds). Pack volumes were set from measured peak levels.
 - Not found on Mixkit: chains rattling. The remaining cues from `assets/playScript/sfx_cue_list.md` have not been searched yet.
-- Open question: how to get the pack onto the Mac (an in-app "Import sound pack" feature, or a private repo).
 
 ## Ideas if wanted later
 

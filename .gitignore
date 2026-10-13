@@ -7,3 +7,4 @@ Thumbs.db
 .vscode/
 # Downloaded sound files are licensed for use in the app, not for republishing
 soundpack/
+*.zip

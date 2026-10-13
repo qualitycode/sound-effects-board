@@ -11,7 +11,7 @@
   let editMode = false;
   let draft = null;
   let draftIsNew = false;
-  let testAudio = null;
+  let testVoice = null;
   let toastTimer = null;
   const players = new Map(); // pad id -> { audio, src }
 
@@ -34,6 +34,38 @@
 
   // ---------- Playback ----------
 
+  let audioCtx = null;
+  let limiter = null;
+
+  // Everything plays through a limiter so boosted quiet sounds can't clip harshly.
+  function audioGraph() {
+    if (!audioCtx) {
+      audioCtx = new AudioContext();
+      limiter = audioCtx.createDynamicsCompressor();
+      limiter.threshold.value = -3;
+      limiter.knee.value = 0;
+      limiter.ratio.value = 20;
+      limiter.attack.value = 0.002;
+      limiter.release.value = 0.15;
+      limiter.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return { ctx: audioCtx, out: limiter };
+  }
+
+  // An <audio> element can't go above 100%, so volume is applied with a gain node (up to 300%).
+  function createVoice(name) {
+    const { ctx, out } = audioGraph();
+    const audio = new Audio();
+    audio.crossOrigin = 'anonymous';
+    audio.preload = 'auto';
+    audio.src = mediaUrl(name);
+    const gain = ctx.createGain();
+    ctx.createMediaElementSource(audio).connect(gain);
+    gain.connect(out);
+    return { audio, gain };
+  }
+
   function padElement(id) {
     return board.querySelector(`[data-id="${CSS.escape(id)}"]`);
   }
@@ -46,12 +78,11 @@
   function getPlayer(pad) {
     let entry = players.get(pad.id);
     if (entry && entry.src !== pad.sound) {
-      entry.audio.pause();
+      dropPlayer(pad.id);
       entry = null;
     }
     if (!entry) {
-      const audio = new Audio(mediaUrl(pad.sound));
-      audio.preload = 'auto';
+      const { audio, gain } = createVoice(pad.sound);
       audio.addEventListener('play', () => setPlaying(pad.id, true));
       audio.addEventListener('pause', () => setPlaying(pad.id, false));
       audio.addEventListener('ended', () => setPlaying(pad.id, false));
@@ -59,16 +90,17 @@
         setPlaying(pad.id, false);
         toast(`Can't play "${pad.label}". Try choosing the sound file again.`);
       });
-      entry = { audio, src: pad.sound };
+      entry = { audio, gain, src: pad.sound };
       players.set(pad.id, entry);
     }
-    return entry.audio;
+    return entry;
   }
 
   function dropPlayer(id) {
     const entry = players.get(id);
     if (entry) {
       entry.audio.pause();
+      entry.gain.disconnect();
       players.delete(id);
     }
   }
@@ -87,14 +119,15 @@
       toast(`"${pad.label}" has no sound yet. Turn on Edit Mode to add one.`);
       return;
     }
-    const audio = getPlayer(pad);
+    const { audio, gain } = getPlayer(pad);
     if (pad.loop && !audio.paused) {
       stopAudio(audio);
       return;
     }
     audio.loop = pad.loop;
-    audio.volume = pad.volume;
+    gain.gain.value = pad.volume;
     audio.currentTime = 0;
+    audioGraph();
     audio.play().catch((err) => {
       if (err.name !== 'AbortError') toast(`Can't play "${pad.label}": ${err.message}`);
     });
@@ -251,9 +284,10 @@
   }
 
   function stopTest() {
-    if (testAudio) {
-      testAudio.pause();
-      testAudio = null;
+    if (testVoice) {
+      testVoice.audio.pause();
+      testVoice.gain.disconnect();
+      testVoice = null;
     }
   }
 
@@ -492,15 +526,15 @@
   $('fSoundTest').addEventListener('click', () => {
     stopTest();
     if (!draft.sound) return showEditorError('Choose a sound file first.');
-    testAudio = new Audio(mediaUrl(draft.sound));
-    testAudio.volume = draft.volume;
-    testAudio.play().catch((err) => showEditorError('Could not play: ' + err.message));
+    testVoice = createVoice(draft.sound);
+    testVoice.gain.gain.value = draft.volume;
+    testVoice.audio.play().catch((err) => showEditorError('Could not play: ' + err.message));
   });
 
   $('fVolume').addEventListener('input', (e) => {
     draft.volume = Number(e.target.value) / 100;
     $('fVolumeOut').textContent = `${e.target.value}%`;
-    if (testAudio) testAudio.volume = draft.volume;
+    if (testVoice) testVoice.gain.gain.value = draft.volume;
   });
   $('fLoop').addEventListener('change', (e) => { draft.loop = e.target.checked; });
   $('fLabel').addEventListener('input', () => showEditorError(''));
@@ -525,6 +559,13 @@
   });
   $('fCancel').addEventListener('click', closeEditor);
   $('fDelete').addEventListener('click', deleteFromEditor);
+
+  // Sent by the File > Import Sound Pack menu after new sounds were added on disk.
+  window.api.onPadsReplaced((next) => {
+    if (editor.open) closeEditor();
+    pads = next;
+    render();
+  });
   editor.addEventListener('close', () => {
     stopTest();
     cancelRecording();

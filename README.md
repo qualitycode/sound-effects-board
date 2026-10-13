@@ -10,12 +10,32 @@ An offline soundboard for a radio play. Click a pad (a picture and/or name) and 
 - **Edit Mode:** click **Edit Mode** to change things. Turn it off again before the show so nothing is changed by accident.
   - Click a pad to rename it, replace its sound, add or change its picture, set the volume, turn looping on or off, or set a keyboard shortcut.
   - **+ Add Sound** adds a new pad. Drag pads to reorder them.
+  - **Volume** goes up to 300%. Quiet recordings can be boosted past 100%, and a limiter stops loud peaks from distorting.
+  - **File > Import Sound Pack…** adds a whole folder of sounds at once. Choose a folder that contains a `pack.json` file (see below). Sounds already on the board with the same name are skipped, so importing twice does no harm.
+  - **File > Export Board as Sound Pack…** saves every pad (sounds, pictures, volume, loop, key) into a new folder. Use it to back up your board or move it to another Mac, then import that folder there.
   - **● Record** (next to *Choose…*) records a new sound from the microphone. Click it to start, click **■ Stop** to finish, then use **▶ Test** to hear it and **Save**. Recordings are saved as WAV files and can be up to 2 minutes.
   - **Microphone permission on a Mac:** the first time you press Record, macOS asks to allow the microphone. Click **OK**. If you clicked "Don't Allow" by mistake, use **Help > Open Microphone Privacy Settings** in the app, or System Settings > Privacy & Security > Microphone, and turn on Sound Effects Board.
   - Supported sounds: mp3, wav, m4a, aac, ogg, flac, aiff. Supported pictures: png, jpg, gif, webp.
 - Your sounds and pictures are **copied into the app's own data folder**, so you can move or delete the originals. Open the folder from **Help > Show Saved Sounds Folder**. Back that folder up to keep your board safe.
 
 The app starts with four generated placeholder sounds (doorbell, knock, beep, wind) so you can try it right away. Delete them in Edit Mode when you add your own.
+
+## Sound packs
+
+A sound pack is a folder with the sound files (and optional pictures) and a `pack.json` file listing the pads:
+
+```json
+{
+  "pads": [
+    { "label": "Door Opens", "file": "mixkit-195.mp3", "volume": 0.8, "loop": false, "key": "Q" },
+    { "label": "Fireplace", "file": "fire.mp3", "image": "fire.png", "volume": 3, "loop": true, "key": "P" }
+  ]
+}
+```
+
+`label` and `file` are required. `image`, `volume` (0 to 3, where 1 is normal), `loop` and `key` are optional. Files must sit directly in the pack folder. To use a pack on the Mac: double-click the pack's zip file to unpack it, open the app, then choose **File > Import Sound Pack…** and pick the unpacked folder.
+
+Downloaded sounds usually come with license rules, so keep packs out of the git repository (the `soundpack/` folder is ignored on purpose).
 
 ## Getting the Mac app (no Mac development needed)
 
