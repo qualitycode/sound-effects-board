@@ -59,6 +59,14 @@ GitHub repo > **Actions** > **Build Mac app** (runs automatically on push, or us
 4. Test: click pads, then try Edit Mode with a real sound, a picture and a key.
 5. Test recording: in Edit Mode click **+ Add Sound** > **● Record**. macOS will ask to allow the microphone; click OK. Record a few seconds, stop, Save, then play the pad.
 
+## Sound pack (downloaded free sounds)
+
+- `soundpack/` holds sounds downloaded from Mixkit (Mixkit Sound Effects Free License), plus `pack.json` (pad names, keys, loop, volume) and `CREDITS.md` (source of every file).
+- It is **git-ignored on purpose**: the license allows using the sounds in the app but not republishing the raw files, so they must not go into the public repo.
+- The pilot (11 sounds: doors, wind, clock chimes, knock, keys/lock, cobblestone footsteps, fireplace, small bells) was loaded into the app's data folder on the Windows laptop only (`%APPDATA%\Sound Effects Board`). The Mac does not have these sounds yet.
+- Not found on Mixkit: chains rattling. The remaining cues from `assets/playScript/sfx_cue_list.md` have not been searched yet.
+- Open question: how to get the pack onto the Mac (an in-app "Import sound pack" feature, or a private repo).
+
 ## Ideas if wanted later
 
 - Fade-out on Stop All, per-pad fade in/out.
