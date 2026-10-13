@@ -61,12 +61,14 @@ GitHub repo > **Actions** > **Build Mac app** (runs automatically on push, or us
 
 ## Sound pack (downloaded free sounds)
 
-- `soundpack/` holds sounds downloaded from Mixkit (Mixkit Sound Effects Free License), plus `pack.json` (pad names, keys, loop, volume) and `CREDITS.md` (source of every file).
-- It is **git-ignored on purpose**: the license allows using the sounds in the app but not republishing the raw files, so they must not go into the public repo.
-- The pilot (11 sounds: doors, wind, clock chimes, knock, keys/lock, cobblestone footsteps, fireplace, small bells) was loaded into the app's data folder on the Windows laptop (`%APPDATA%\Sound Effects Board`). `SoundPack.zip` (project root, git-ignored) is the same pack zipped for the Mac.
+- `soundpack/` holds the downloaded sounds (60 files), plus `pack.json` (pad names, keys, loop, volume) and `CREDITS.md` (source and license of every file). Sources: Mixkit (Mixkit Sound Effects Free License) and Freesound (only CC0 sounds; each was checked on its page).
+- It is **git-ignored on purpose**: the Mixkit license allows using the sounds in the app but not republishing the raw files, so they must not go into the public repo.
+- Pilot (11 sounds) plus the rest of the cue list (49 more: chains, windows, curtains, latch, footsteps, slippers, party/dancing, street montage pieces, packages, coins, crutch, table settings, cloth, clock strikes, ghosts, jingle bells, etc.) were loaded into the app's data folder on the Windows laptop (`%APPDATA%\Sound Effects Board`, 64 pads with the 4 placeholders). `SoundPack.zip` (project root, git-ignored, ~12 MB) is the same pack zipped for the Mac.
+- Long recordings were cut to usable lengths with ffmpeg (leading silence removed, fade-out). Loops are cut from longer clips, so they have a small seam when they repeat. I could not listen to any of the sounds; titles and lengths were the only guide, so some will need swapping.
+- Tools used (not in the repo): Python + `imageio-ffmpeg` (bundled ffmpeg), build script in the Copilot session folder. To redo this: search Freesound with the CC0 filter, download the preview mp3, trim/level with ffmpeg, add to `pack.json`.
 - **Getting it onto the Mac:** unzip `SoundPack.zip` there, then in the app use **File > Import Sound Pack…** and choose the unzipped folder. The same menu has **Export Board as Sound Pack…** for backups. The Mac needs the new build first (push to GitHub, download from Actions).
-- Volume now goes up to 300% (Web Audio gain + limiter), because some downloads are very quiet (the fireplace file is about 35 dB below the door sounds). Pack volumes were set from measured peak levels.
-- Not found on Mixkit: chains rattling. The remaining cues from `assets/playScript/sfx_cue_list.md` have not been searched yet.
+- Volume goes up to 300% (Web Audio gain + limiter), because some downloads are very quiet (the fireplace file is about 35 dB below the door sounds). Pack volumes were set from measured levels.
+- Weak spots: chains came from Freesound (Mixkit had none); the hurdy-gurdy is a street/barrel organ; "dancing feet" is tap dancing; wind chimes, horse, carol and violin pads are real-world recordings, not period-exact.
 
 ## Ideas if wanted later
 
