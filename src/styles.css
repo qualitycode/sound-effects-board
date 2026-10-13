@@ -34,6 +34,7 @@ body { display: flex; flex-direction: column; user-select: none; }
 }
 
 .toolbar h1 { font-size: 18px; margin: 0; }
+.toolbar .credit { display: inline-block; margin-left: 10px; font-size: 13px; font-weight: 400; color: var(--muted); white-space: nowrap; }
 .toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .btn {

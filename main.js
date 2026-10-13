@@ -238,6 +238,11 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    app.setAboutPanelOptions({
+      applicationName: 'Sound Effects Board',
+      applicationVersion: app.getVersion(),
+      copyright: 'Created by Larry Maddocks',
+    });
     registerIpc();
     registerMediaProtocol();
     registerMicPermission();
