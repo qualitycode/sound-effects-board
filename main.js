@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, Menu, shell, session, systemPreferences } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -11,6 +11,7 @@ protocol.registerSchemesAsPrivileged([
 const SAMPLES_DIR = path.join(__dirname, 'assets', 'samples');
 const AUDIO_EXTS = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'oga', 'flac', 'aif', 'aiff'];
 const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+const MAX_RECORDING_BYTES = 50 * 1024 * 1024;
 
 let mainWindow = null;
 
@@ -136,7 +137,35 @@ function registerIpc() {
     return { file: stored, original: path.basename(src) };
   });
 
+  ipcMain.handle('media:saveRecording', (_e, data) => {
+    const bytes = Buffer.from(data);
+    if (bytes.length < 44 || bytes.length > MAX_RECORDING_BYTES || bytes.toString('ascii', 0, 4) !== 'RIFF') {
+      throw new Error('Invalid recording');
+    }
+    ensureDirs();
+    const stored = `${crypto.randomUUID()}.wav`;
+    fs.writeFileSync(path.join(mediaDir(), stored), bytes);
+    return { file: stored };
+  });
+
+  // On a Mac the system asks the user once; Windows/Linux need no extra step here.
+  ipcMain.handle('mic:request', async () => {
+    if (process.platform !== 'darwin') return { ok: true };
+    const status = systemPreferences.getMediaAccessStatus('microphone');
+    if (status === 'granted') return { ok: true };
+    if (status === 'denied' || status === 'restricted') return { ok: false };
+    return { ok: await systemPreferences.askForMediaAccess('microphone') };
+  });
+
   ipcMain.handle('app:showDataFolder', () => shell.openPath(dataDir()));
+}
+
+function registerMicPermission() {
+  const isAudioOnly = (details) => !details || !details.mediaTypes || details.mediaTypes.every((t) => t === 'audio');
+  session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+    callback(permission === 'media' && isAudioOnly(details));
+  });
+  session.defaultSession.setPermissionCheckHandler((wc, permission) => permission === 'media');
 }
 
 function registerMediaProtocol() {
@@ -165,6 +194,12 @@ function buildMenu() {
       label: 'Help',
       submenu: [
         { label: 'Show Saved Sounds Folder', click: () => shell.openPath(dataDir()) },
+        ...(isMac
+          ? [{
+              label: 'Open Microphone Privacy Settings',
+              click: () => shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone'),
+            }]
+          : []),
       ],
     },
   ];
@@ -205,6 +240,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     registerIpc();
     registerMediaProtocol();
+    registerMicPermission();
     buildMenu();
     createWindow();
     app.on('activate', () => {

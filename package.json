@@ -34,7 +34,10 @@
         "dmg"
       ],
       "identity": "-",
-      "hardenedRuntime": false
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Sound Effects Board uses the microphone only when you press Record to make a new sound effect."
+      }
     },
     "dmg": {
       "title": "Sound Effects Board"

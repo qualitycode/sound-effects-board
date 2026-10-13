@@ -73,7 +73,7 @@ function wind() {
     const t = i / RATE;
     low += 0.03 * ((Math.random() * 2 - 1) - low);
     const swell = 0.6 + 0.4 * Math.sin(2 * Math.PI * (t / seconds) * 2);
-    out[i] = low * 6 * swell * 0.6;
+    out[i] = low * 4 * swell * 0.6;
   }
   const fadeLen = Math.floor(0.25 * RATE);
   for (let i = 0; i < fadeLen; i++) {

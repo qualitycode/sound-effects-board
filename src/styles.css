@@ -51,6 +51,9 @@ body { display: flex; flex-direction: column; user-select: none; }
 .btn.danger { background: var(--danger); border-color: var(--danger); }
 .btn.danger:hover { filter: brightness(1.1); }
 .btn[aria-pressed="true"] { background: #b8860b; border-color: #b8860b; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn.recording { background: var(--danger); border-color: var(--danger); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.65; } }
 
 .hint { margin: 10px 18px 0; color: var(--muted); font-size: 14px; min-height: 20px; }
 

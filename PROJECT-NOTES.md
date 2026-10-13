@@ -25,7 +25,9 @@ An offline Mac app for a friend's radio play. Click a picture/text pad and a sou
 
 ## How to use the app
 
-Click a pad (or press its key) to play. Esc or **Stop All** stops everything. **Edit Mode** lets you rename pads, change sounds and pictures, set volume, loop and keys, add or delete pads, and drag pads to reorder them. See [README.md](./README.md) for full details.
+Click a pad (or press its key) to play. Esc or **Stop All** stops everything. **Edit Mode** lets you rename pads, change sounds and pictures, record a new sound with the microphone (**● Record**), set volume, loop and keys, add or delete pads, and drag pads to reorder them. See [README.md](./README.md) for full details.
+
+Recording notes: the microphone is captured raw (no echo cancellation or noise suppression), converted to a mono WAV in the page, and saved through `main.js` (`media:saveRecording`). On a Mac the first use triggers the system microphone prompt (`NSMicrophoneUsageDescription` is set in `package.json`). This has been tested on Windows with a fake microphone; the Mac prompt has not been tested yet.
 
 ## Next steps
 
@@ -55,6 +57,7 @@ GitHub repo > **Actions** > **Build Mac app** (runs automatically on push, or us
    xattr -cr "/Applications/Sound Effects Board.app"
    ```
 4. Test: click pads, then try Edit Mode with a real sound, a picture and a key.
+5. Test recording: in Edit Mode click **+ Add Sound** > **● Record**. macOS will ask to allow the microphone; click OK. Record a few seconds, stop, Save, then play the pad.
 
 ## Ideas if wanted later
 

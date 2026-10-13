@@ -257,6 +257,159 @@
     }
   }
 
+  // ---------- Recording ----------
+
+  const MAX_RECORD_SECONDS = 120;
+  let recording = null;
+
+  const formatTime = (secs) => {
+    const s = Math.floor(secs);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  function setRecordingUi(on) {
+    const btn = $('fRecord');
+    btn.disabled = false;
+    btn.classList.toggle('recording', on);
+    btn.textContent = on ? '■ Stop 0:00' : '● Record';
+    for (const id of ['fSoundPick', 'fSoundTest', 'fSave', 'fDelete']) $(id).disabled = on;
+  }
+
+  function micErrorMessage(err) {
+    switch (err && err.name) {
+      case 'NotAllowedError':
+        return 'Microphone access is blocked. On a Mac, open System Settings > Privacy & Security > Microphone and turn on Sound Effects Board. On Windows, check Settings > Privacy > Microphone.';
+      case 'NotFoundError':
+        return 'No microphone was found. Plug one in and try again.';
+      default:
+        return 'Could not start recording: ' + ((err && err.message) || err);
+    }
+  }
+
+  function encodeWav(audio) {
+    const frames = audio.length;
+    const rate = audio.sampleRate;
+    const channels = audio.numberOfChannels;
+    const mono = new Float32Array(frames);
+    for (let c = 0; c < channels; c++) {
+      const data = audio.getChannelData(c);
+      for (let i = 0; i < frames; i++) mono[i] += data[i] / channels;
+    }
+    const buffer = new ArrayBuffer(44 + frames * 2);
+    const view = new DataView(buffer);
+    const text = (offset, s) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)); };
+    text(0, 'RIFF');
+    view.setUint32(4, 36 + frames * 2, true);
+    text(8, 'WAVE');
+    text(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    text(36, 'data');
+    view.setUint32(40, frames * 2, true);
+    for (let i = 0; i < frames; i++) {
+      const s = Math.max(-1, Math.min(1, mono[i]));
+      view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return { wav: buffer, seconds: frames / rate };
+  }
+
+  async function blobToWav(blob) {
+    const ctx = new AudioContext();
+    try {
+      return encodeWav(await ctx.decodeAudioData(await blob.arrayBuffer()));
+    } finally {
+      ctx.close();
+    }
+  }
+
+  function releaseRecording(rec) {
+    clearInterval(rec.timer);
+    rec.stream.getTracks().forEach((t) => t.stop());
+  }
+
+  async function startRecording() {
+    showEditorError('');
+    stopTest();
+    let stream;
+    try {
+      const access = await window.api.requestMic();
+      if (!access.ok) throw Object.assign(new Error('Microphone access denied'), { name: 'NotAllowedError' });
+      // Raw capture: sound effects should not be "cleaned up" like a phone call.
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+    } catch (err) {
+      showEditorError(micErrorMessage(err));
+      return;
+    }
+    if (!editor.open) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+
+    const rec = { stream, chunks: [], discard: false, startedAt: Date.now(), timer: null, mediaRecorder: new MediaRecorder(stream) };
+    rec.mediaRecorder.addEventListener('dataavailable', (e) => { if (e.data.size) rec.chunks.push(e.data); });
+    rec.mediaRecorder.addEventListener('stop', () => finishRecording(rec));
+    rec.timer = setInterval(() => {
+      const secs = (Date.now() - rec.startedAt) / 1000;
+      $('fRecord').textContent = `■ Stop ${formatTime(secs)}`;
+      if (secs >= MAX_RECORD_SECONDS) stopRecording();
+    }, 250);
+    recording = rec;
+    rec.mediaRecorder.start();
+    setRecordingUi(true);
+  }
+
+  function stopRecording() {
+    if (recording && recording.mediaRecorder.state !== 'inactive') {
+      $('fRecord').disabled = true;
+      recording.mediaRecorder.stop();
+    }
+  }
+
+  function cancelRecording() {
+    if (!recording) return;
+    const rec = recording;
+    rec.discard = true;
+    releaseRecording(rec);
+    if (rec.mediaRecorder.state !== 'inactive') rec.mediaRecorder.stop();
+    recording = null;
+    setRecordingUi(false);
+  }
+
+  async function finishRecording(rec) {
+    releaseRecording(rec);
+    if (rec.discard) return;
+    $('fRecord').textContent = 'Saving…';
+    let saved = null;
+    let seconds = 0;
+    let error = null;
+    try {
+      if (!rec.chunks.length) throw new Error('Nothing was recorded.');
+      const encoded = await blobToWav(new Blob(rec.chunks, { type: rec.mediaRecorder.mimeType }));
+      seconds = encoded.seconds;
+      saved = await window.api.saveRecording(encoded.wav);
+    } catch (err) {
+      error = err;
+    }
+    if (rec.discard) return;
+    recording = null;
+    setRecordingUi(false);
+    if (error) {
+      showEditorError('Could not save the recording: ' + error.message);
+      return;
+    }
+    draft.sound = saved.file;
+    draft.soundName = `New recording (${formatTime(seconds)})`;
+    if (!$('fLabel').value.trim()) $('fLabel').value = 'New recording';
+    refreshEditor();
+  }
+
   function closeEditor() {
     stopTest();
     if (editor.open) editor.close();
@@ -329,6 +482,7 @@
   $('stopAll').addEventListener('click', stopAll);
 
   $('fSoundPick').addEventListener('click', () => pick('audio'));
+  $('fRecord').addEventListener('click', () => (recording ? stopRecording() : startRecording()));
   $('fImagePick').addEventListener('click', () => pick('image'));
   $('fImageClear').addEventListener('click', () => {
     draft.image = null;
@@ -371,7 +525,10 @@
   });
   $('fCancel').addEventListener('click', closeEditor);
   $('fDelete').addEventListener('click', deleteFromEditor);
-  editor.addEventListener('close', stopTest);
+  editor.addEventListener('close', () => {
+    stopTest();
+    cancelRecording();
+  });
 
   document.addEventListener('keydown', (e) => {
     if (editor.open) return;

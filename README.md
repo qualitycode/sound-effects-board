@@ -10,6 +10,8 @@ An offline soundboard for a radio play. Click a pad (a picture and/or name) and 
 - **Edit Mode:** click **Edit Mode** to change things. Turn it off again before the show so nothing is changed by accident.
   - Click a pad to rename it, replace its sound, add or change its picture, set the volume, turn looping on or off, or set a keyboard shortcut.
   - **+ Add Sound** adds a new pad. Drag pads to reorder them.
+  - **● Record** (next to *Choose…*) records a new sound from the microphone. Click it to start, click **■ Stop** to finish, then use **▶ Test** to hear it and **Save**. Recordings are saved as WAV files and can be up to 2 minutes.
+  - **Microphone permission on a Mac:** the first time you press Record, macOS asks to allow the microphone. Click **OK**. If you clicked "Don't Allow" by mistake, use **Help > Open Microphone Privacy Settings** in the app, or System Settings > Privacy & Security > Microphone, and turn on Sound Effects Board.
   - Supported sounds: mp3, wav, m4a, aac, ogg, flac, aiff. Supported pictures: png, jpg, gif, webp.
 - Your sounds and pictures are **copied into the app's own data folder**, so you can move or delete the originals. Open the folder from **Help > Show Saved Sounds Folder**. Back that folder up to keep your board safe.
 
