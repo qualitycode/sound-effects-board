@@ -184,3 +184,37 @@ body { display: flex; flex-direction: column; user-select: none; }
 .actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
 .spacer { flex: 1; }
 .error { margin: 0; color: #ff8a8e; font-size: 14px; }
+
+.script-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px 18px; gap: 12px; }
+.script-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.script-tools label { display: flex; align-items: center; gap: 8px; }
+select { background: var(--panel-2); color: var(--text); border: 1px solid #555c70; border-radius: 6px; padding: 8px; font: inherit; }
+.script-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; }
+.script-text { overflow-y: auto; padding: 18px 24px; background: #f5f0e5; color: #222; border-radius: 10px; user-select: text; line-height: 1.65; }
+.script-text section { padding-bottom: 24px; border-bottom: 1px solid #c7beac; scroll-margin-top: 12px; }
+.script-text h2 { font: 600 14px system-ui; color: #625a4b; }
+.dialogue { white-space: pre-line; margin: 16px 0; }
+.script-cue { display: block; width: 100%; text-align: left; background: #343273; border: 2px solid #5b54ac; white-space: normal; margin: 12px 0; line-height: 1.5; }
+.script-cue.unassigned { background: #604716; border-color: #a58038; }
+.script-cue.selected { outline: 3px solid #222; outline-offset: 3px; }
+.script-cue.playing { border-color: var(--playing); background: #145432; }
+.scene-panel { overflow-y: auto; padding: 14px; background: var(--panel); border-radius: 10px; font-size: 14px; }
+.scene-panel h2 { font-size: 16px; }
+.sound-control { padding: 12px 0; border-bottom: 1px solid #3a3f50; }
+.sound-control strong { display: block; margin-bottom: 8px; }
+.sound-control.playing strong { color: var(--playing); }
+.sound-control .btn { padding: 6px 10px; }
+.cue-action { flex-wrap: wrap; margin-bottom: 10px; }
+.cue-pad { flex: 1; min-width: 140px; max-width: 100%; }
+.cue-action { padding: 10px 0; border-bottom: 1px solid #3a3f50; }
+.cue-action input { width: 65px; font: inherit; padding: 6px; }
+.cue-note { font: 14px/1.5 system-ui; color: #65542d; margin: -4px 0 18px; }
+#cueDescription { white-space: pre-line; }
+.btn:focus-visible, select:focus-visible { outline: 3px solid #aba6ff; outline-offset: 2px; }
+@media (max-width: 760px) {
+  .toolbar { flex-wrap: wrap; }
+  .script-layout { grid-template-columns: minmax(0, 1fr) 210px; gap: 8px; }
+  .script-text { padding: 12px; }
+  .scene-panel { padding: 8px; }
+  .sound-control .row { flex-wrap: wrap; }
+}

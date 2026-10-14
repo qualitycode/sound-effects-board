@@ -20,6 +20,23 @@ An offline soundboard for a radio play. Click a pad (a picture and/or name) and 
 
 The app starts with four generated placeholder sounds (doorbell, knock, beep, wind) so you can try it right away. Delete them in Edit Mode when you add your own.
 
+## Script view
+
+Use **Script** in the top toolbar to read the bundled Christmas Carol dialogue with clickable sound directions. **Pads** returns to the full board. Both views share playback, shortcuts, and **Stop All**.
+
+- First import your sound pack or add your recordings using the pads.
+- Turn on **Edit Mode**, switch to **Script**, and click a sound direction. Add one or more actions and choose an existing sound for each: **Play once**, **Start loop**, **Stop**, or **Fade out (2s)**. Save, then turn Edit Mode off before performing.
+- Clicking a cue runs its assigned actions together. For example, assign **Play once: Door Closes** and **Stop: Wind** to a door-closing cue. Repeated start actions restart the sound; they do not toggle it off.
+- For sequences requiring pauses or timing with actors, use the individual **Play/Loop**, **Stop**, and **Fade** controls beside the script. **Page sounds** shows sounds assigned on the current page; **Now playing** includes sounds started from either view.
+- Unassigned cues and cues with deleted sounds say **needs assignment** and do not play any part of the cue. Reassign them in Edit Mode. Replacing a pad's recording keeps its cue links.
+- The page selector uses both PDF and printed page numbers. **Previous cue** and **Next cue** move through the script without playing. Text size, selected page, and view are remembered.
+- This production includes prepared assignments for all 95 cues using the 60-sound project pack. When the full pack is on your board, first use backs up earlier trial assignments and installs the prepared set. Subsequent edits are preserved. Missing sounds keep a cue unavailable until you import the pack.
+- Edit cue **Delay (s)** to schedule an action after clicking. **Times** repeats a Play action after each recording finishes, useful for counted clock strikes. **Continue / start loop** keeps an existing loop going without restarting it. **Stop All**, individual stops, and retriggering a cue cancel pending actions for the affected sounds. Loop actions ignore Times.
+- Rehearsal notes appear below cues where recordings are substitutes, an actor supplies a voice, or timing needs adjustment. The prepared pauses are starting points; rehearse their timing and levels. **Use prepared actions** restores that cue's prepared actions in the editor; Save applies them.
+- Assignments are stored as `script-cues.json` in the app's saved-data folder, alongside `pads.json`. Back up the whole folder to preserve cue links; sound-pack exports currently contain sounds and pad settings only.
+
+The local Windows build includes extracted dialogue (41 pages and 95 SFX directions), so it needs no PDF reader or network. The play script remains git-ignored because it is not ours to republish. For a build made on GitHub, transfer `assets/playScript/script.json` privately to the Mac and choose **File > Import Play Script…**. Importing replaces the script, resets assignments, and backs up the previous saved script and assignments in the data folder. To regenerate the text after changing the source PDF, run `python scripts/extract-script.py` with PyMuPDF installed. Electron integration checks are in `scripts/test-script-view.cjs` and use temporary data rather than your board.
+
 ## Sound packs
 
 A sound pack is a folder with the sound files (and optional pictures) and a `pack.json` file listing the pads:

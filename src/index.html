@@ -12,6 +12,8 @@
   <header class="toolbar">
     <h1>Sound Effects Board <span class="credit">Created by Larry Maddocks</span></h1>
     <div class="toolbar-actions">
+      <button id="padsView" class="btn" type="button" aria-pressed="true">Pads</button>
+      <button id="scriptView" class="btn" type="button" aria-pressed="false">Script</button>
       <button id="addBtn" class="btn primary hidden" type="button">+ Add Sound</button>
       <button id="editToggle" class="btn" type="button" aria-pressed="false">Edit Mode: Off</button>
       <button id="stopAll" class="btn danger" type="button" title="Stop all sounds (Esc)">■ Stop All</button>
@@ -20,6 +22,32 @@
 
   <p id="hint" class="hint"></p>
   <main id="board" class="board" aria-label="Sound effect pads"></main>
+  <section id="scriptPanel" class="script-panel hidden" aria-label="Script and sound cues">
+    <div class="script-tools">
+      <label>Page <select id="scriptPage" aria-label="Jump to script page"></select></label>
+      <button id="previousCue" class="btn" type="button">Previous cue</button>
+      <button id="nextCue" class="btn" type="button">Next cue</button>
+      <label>Text size <input id="scriptSize" type="range" min="14" max="26" value="18"></label>
+    </div>
+    <div class="script-layout">
+      <article id="scriptText" class="script-text" aria-label="Play dialogue"></article>
+      <aside class="scene-panel" aria-label="Sound controls">
+        <h2 id="sceneTitle">Page sounds</h2><div id="sceneSounds"></div>
+        <h2>Now playing</h2><div id="nowPlaying" aria-live="polite"></div>
+      </aside>
+    </div>
+  </section>
+  <dialog id="cueEditor" class="editor">
+    <form id="cueForm">
+      <h2>Assign cue actions</h2><p id="cueDescription"></p>
+      <p class="hint">Delay is seconds after clicking the cue. Times repeats a Play action after each recording finishes. Continue keeps an existing loop running. Fade takes 2 seconds. Use scene controls to follow actor timing.</p>
+      <div id="cueActions"></div>
+      <button id="preparedCue" class="btn" type="button">Use prepared actions</button>
+      <button id="addCueAction" class="btn" type="button">+ Add action</button>
+      <p id="cueError" class="error" role="alert"></p>
+      <div class="actions"><button id="cancelCue" class="btn" type="button">Cancel</button><span class="spacer"></span><button id="saveCue" class="btn primary" type="submit">Save</button></div>
+    </form>
+  </dialog>
   <div id="toast" class="toast hidden" role="status"></div>
 
   <dialog id="editor" class="editor">
@@ -80,6 +108,7 @@
     </form>
   </dialog>
 
+  <script src="script-view.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

@@ -14,6 +14,14 @@
   let testVoice = null;
   let toastTimer = null;
   const players = new Map(); // pad id -> { audio, src }
+  let scriptView = null;
+  const pendingActions = new Map();
+  function cancelScheduled(id) {
+    for (const timer of pendingActions.get(id) || []) clearTimeout(timer);
+    pendingActions.delete(id);
+    const entry = players.get(id);
+    if (entry) entry.repeatRemaining = 1;
+  }
 
   const mediaUrl = (name) => `media://file/${encodeURIComponent(name)}`;
 
@@ -73,6 +81,7 @@
   function setPlaying(id, on) {
     const el = padElement(id);
     if (el) el.classList.toggle('playing', on);
+    scriptView?.refreshPlayback();
   }
 
   function getPlayer(pad) {
@@ -85,7 +94,13 @@
       const { audio, gain } = createVoice(pad.sound);
       audio.addEventListener('play', () => setPlaying(pad.id, true));
       audio.addEventListener('pause', () => setPlaying(pad.id, false));
-      audio.addEventListener('ended', () => setPlaying(pad.id, false));
+      audio.addEventListener('ended', () => {
+        if (entry.repeatRemaining > 1) {
+          entry.repeatRemaining--;
+          audio.currentTime = 0;
+          audio.play().catch(err => toast(`Can't repeat "${pad.label}": ${err.message}`));
+        } else setPlaying(pad.id, false);
+      });
       audio.addEventListener('error', () => {
         setPlaying(pad.id, false);
         toast(`Can't play "${pad.label}". Try choosing the sound file again.`);
@@ -97,8 +112,10 @@
   }
 
   function dropPlayer(id) {
+    cancelScheduled(id);
     const entry = players.get(id);
     if (entry) {
+      clearTimeout(entry.fadeTimer);
       entry.audio.pause();
       entry.gain.disconnect();
       players.delete(id);
@@ -111,20 +128,29 @@
   }
 
   function stopAll() {
-    for (const { audio } of players.values()) stopAudio(audio);
+    for (const id of pendingActions.keys()) cancelScheduled(id);
+    for (const entry of players.values()) {
+      entry.repeatRemaining = 1;
+      clearTimeout(entry.fadeTimer);
+      stopAudio(entry.audio);
+    }
+    scriptView?.refreshPlayback();
   }
 
   function triggerPad(pad) {
+    cancelScheduled(pad.id);
     if (!pad.sound) {
       toast(`"${pad.label}" has no sound yet. Turn on Edit Mode to add one.`);
       return;
     }
     const { audio, gain } = getPlayer(pad);
+    clearTimeout(players.get(pad.id).fadeTimer);
     if (pad.loop && !audio.paused) {
       stopAudio(audio);
       return;
     }
     audio.loop = pad.loop;
+    gain.gain.cancelScheduledValues(audioCtx.currentTime);
     gain.gain.value = pad.volume;
     audio.currentTime = 0;
     audioGraph();
@@ -134,6 +160,50 @@
   }
 
   // ---------- Board ----------
+
+  function runScriptAction(id, action, options = {}) {
+    const pad = pads.find(p => p.id === id);
+    if (!pad || !pad.sound) return;
+    if (['play', 'loop', 'hold'].includes(action)) {
+      const entry = getPlayer(pad);
+      clearTimeout(entry.fadeTimer);
+      entry.gain.gain.cancelScheduledValues(audioCtx.currentTime);
+      entry.gain.gain.value = pad.volume;
+      if (action === 'hold' && !entry.audio.paused) return;
+      entry.audio.loop = action !== 'play';
+      entry.repeatRemaining = action === 'play' ? Math.max(1, options.repeat || 1) : 1;
+      entry.audio.currentTime = 0;
+      entry.audio.play().catch(err => { if (err.name !== 'AbortError') toast(`Can't play "${pad.label}": ${err.message}`); });
+    } else {
+      const entry = players.get(id);
+      if (!entry) return;
+      entry.repeatRemaining = 1;
+      clearTimeout(entry.fadeTimer);
+      if (action === 'fade' && !entry.audio.paused) {
+        const now = audioCtx.currentTime;
+        entry.gain.gain.cancelAndHoldAtTime(now);
+        entry.gain.gain.linearRampToValueAtTime(0, now + 2);
+        entry.fadeTimer = setTimeout(() => stopAudio(entry.audio), 2000);
+      } else stopAudio(entry.audio);
+    }
+  }
+
+  function runCueActions(actions) {
+    for (const id of new Set(actions.map(a => a.padId))) cancelScheduled(id);
+    for (const action of actions) {
+      if (!action.delay) runScriptAction(action.padId, action.action, action);
+      else {
+        if (!pendingActions.has(action.padId)) pendingActions.set(action.padId, new Set());
+        const timers = pendingActions.get(action.padId);
+        const timer = setTimeout(() => {
+          timers.delete(timer);
+          if (!timers.size) pendingActions.delete(action.padId);
+          runScriptAction(action.padId, action.action, action);
+        }, action.delay * 1000);
+        timers.add(timer);
+      }
+    }
+  }
 
   function render() {
     board.textContent = '';
@@ -153,6 +223,7 @@
     for (const [id, { audio }] of players) {
       if (!audio.paused) setPlaying(id, true);
     }
+    scriptView?.refresh();
   }
 
   function hueFor(text) {
@@ -565,6 +636,7 @@
     if (editor.open) closeEditor();
     pads = next;
     render();
+    scriptView?.reloadAssignments();
   });
   editor.addEventListener('close', () => {
     stopTest();
@@ -572,9 +644,9 @@
   });
 
   document.addEventListener('keydown', (e) => {
-    if (editor.open) return;
+    if (editor.open || $('cueEditor').open) return;
     const tag = (e.target.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea') return;
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if (e.key === 'Escape') return stopAll();
     if (editMode || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key.length !== 1) return;
@@ -592,5 +664,13 @@
       toast('Could not load saved sounds: ' + err.message);
     }
     render();
+    scriptView = await window.createScriptView({
+      getPads: () => pads,
+      isEditing: () => editMode,
+      isPlaying: (id) => !!players.get(id) && !players.get(id).audio.paused,
+      toast,
+      runCueActions,
+      runAction: (id, action) => { cancelScheduled(id); runScriptAction(id, action); },
+    });
   })();
 })();

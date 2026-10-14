@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
+const { sanitizeAction, resolvePresets } = require('./cue-presets');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'media', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
@@ -108,6 +109,40 @@ function loadPads() {
 }
 
 function registerIpc() {
+  ipcMain.handle('script:load', () => {
+    const saved = path.join(dataDir(), 'script.json');
+    const bundled = path.join(__dirname, 'assets/playScript/script.json');
+    const source = fs.existsSync(saved) ? saved : bundled;
+    const script = fs.existsSync(source) ? JSON.parse(fs.readFileSync(source, 'utf8')) : { title: 'No play script loaded', pages: [] };
+    const file = path.join(dataDir(), 'script-cues.json');
+    let assignments = {};
+    if (fs.existsSync(file)) assignments = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const pads = loadPads();
+    const setupFile = path.join(dataDir(), 'script-cue-preset.json');
+    const setup = fs.existsSync(setupFile) ? JSON.parse(fs.readFileSync(setupFile, 'utf8')) : {};
+    if (script.presetVersion && setup.version !== script.presetVersion) {
+      const prepared = resolvePresets(script, pads);
+      const complete = Object.keys(prepared).length > 0 && Object.values(prepared).every(actions => actions.length && actions.every(a => pads.some(p => p.id === a.padId && p.sound)));
+      if (complete) {
+        if (fs.existsSync(file)) fs.copyFileSync(file, `${file}.backup-${Date.now()}`);
+        assignments = prepared;
+        writeJsonAtomic(file, assignments);
+        writeJsonAtomic(setupFile, { version: script.presetVersion });
+      }
+    }
+    return { ...script, assignments: resolvePresets(script, pads, assignments) };
+  });
+  ipcMain.handle('script:save', (_e, assignments) => {
+    if (!assignments || typeof assignments !== 'object' || Array.isArray(assignments)) throw new Error('Invalid cues');
+    const clean = {};
+    for (const [id, actions] of Object.entries(assignments)) {
+      if (!/^p\d+-c\d+$/.test(id) || !Array.isArray(actions)) continue;
+      clean[id] = actions.slice(0, 50).map(sanitizeAction);
+    }
+    ensureDirs();
+    writeJsonAtomic(path.join(dataDir(), 'script-cues.json'), clean);
+    return clean;
+  });
   ipcMain.handle('pads:load', () => loadPads());
 
   ipcMain.handle('pads:save', (_e, pads) => {
@@ -326,6 +361,44 @@ async function exportPackFromMenu() {
   }
 }
 
+async function importScriptFromMenu() {
+  const picked = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import a prepared play script', properties: ['openFile'],
+    filters: [{ name: 'Prepared script', extensions: ['json'] }],
+  });
+  if (picked.canceled || !picked.filePaths.length) return;
+  try {
+    const source = JSON.parse(fs.readFileSync(picked.filePaths[0], 'utf8'));
+    if (!Array.isArray(source.pages) || !source.pages.length || source.pages.length > 500) throw new Error('Choose a prepared script.json file, not a sound pack or cue assignments file.');
+    const ids = new Set();
+    const pageNumbers = new Set();
+    const pages = source.pages.map(p => {
+      if (!Number.isInteger(p.page) || p.page < 1 || pageNumbers.has(p.page) || !Array.isArray(p.blocks)) throw new Error('Invalid script page.');
+      pageNumbers.add(p.page);
+      return { page: p.page, blocks: p.blocks.map(b => {
+        if (typeof b.text === 'string') return { text: cleanString(b.text, 100000) };
+        if (!/^p\d+-c\d+$/.test(b.id) || ids.has(b.id) || typeof b.cue !== 'string') throw new Error('Invalid or duplicate script cue.');
+        ids.add(b.id); return { id: b.id, cue: cleanString(b.cue, 5000), note: cleanString(b.note, 5000),
+          defaults: Array.isArray(b.defaults) ? b.defaults.slice(0, 50).map(a => ({
+            ...sanitizeAction(a), label: cleanString(a && a.label, 100),
+          })) : [],
+        };
+      }) };
+    });
+    ensureDirs();
+    const current = path.join(dataDir(), 'script.json');
+    const cues = path.join(dataDir(), 'script-cues.json');
+    // Preserve the previous script and assignments for recovery when replacing a play.
+    const stamp = Date.now();
+    for (const file of [current, cues]) if (fs.existsSync(file)) fs.copyFileSync(file, `${file}.backup-${stamp}`);
+    writeJsonAtomic(current, { title: cleanString(source.title, 200), presetVersion: cleanString(source.presetVersion, 100), pages });
+    writeJsonAtomic(cues, {});
+    mainWindow.webContents.send('script:replaced');
+  } catch (err) {
+    await dialog.showMessageBox(mainWindow, { type: 'error', message: 'Could not import the script.', detail: err.message });
+  }
+}
+
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   const template = [
@@ -335,6 +408,7 @@ function buildMenu() {
       submenu: [
         { id: 'importPack', label: 'Import Sound Pack…', click: importPackFromMenu },
         { id: 'exportPack', label: 'Export Board as Sound Pack…', click: exportPackFromMenu },
+        { label: 'Import Play Script…', click: importScriptFromMenu },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' },
       ],
