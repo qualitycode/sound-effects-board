@@ -68,6 +68,8 @@ The Mac app is built automatically by GitHub, so you never need to install devel
 
 ## Installing on the Mac
 
+For updating an existing installation, including transferring the private script and prepared cues, follow [Mac update instructions](MAC-UPDATE-INSTRUCTIONS.md).
+
 1. Double-click the `.dmg`, then drag **Sound Effects Board** onto the **Applications** folder.
 2. Open **Applications**. The first time, **right-click the app > Open > Open**. The app is not signed with a paid Apple developer certificate, so macOS asks for this confirmation once.
 3. If macOS says the app is "damaged" or "can't be opened", open the **Terminal** app and run:
