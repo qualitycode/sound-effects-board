@@ -1,0 +1,6 @@
+Replacement: Clock Single Strike
+Description: One clock gong with its natural decay.
+Created by:
+Audio source:
+License / attribution:
+Notes:

@@ -1,0 +1,28 @@
+DALLIN: ONE CLOCK GONG
+
+1. Unzip this entire ZIP into Documents. Work in the extracted folder,
+   not inside the ZIP preview. No soundboard app or coding tools are needed.
+2. Listen to Reference/Clock Single Strike.mp3 and Clock Chimes.mp3.
+   These are the old recordings for comparison.
+3. Create ONE good clock GONG. Include its natural decay, without clipping,
+   a melody, or multiple strikes. Trim unnecessary silence at the beginning.
+   The soundboard repeats this entire recording to count the strikes.
+4. Save your replacement as Finished/Clock Single Strike.wav (preferred)
+   or Finished/Clock Single Strike.mp3. Include exactly one finished audio file.
+5. Write its source and any attribution/license information in Changes.txt.
+6. Windows: double-click Make-Return-Zip.cmd.
+   Mac: open Terminal, type bash followed by a space, drag Make-Return-Zip.sh
+   into Terminal, and press Return.
+7. Send the resulting Dallin-Clock-Update ZIP to Larry. It is created beside
+   this extracted folder. Larry can send the same ZIP to Milo.
+
+LARRY AND MILO: APPLY THE UPDATE
+
+Unzip Dallin's return ZIP. In Sound Effects Board, use Edit Mode, click the
+existing Clock Single Strike pad, choose the new audio in Finished, and Save.
+Keep the existing pad and its name so the script keeps its cue links.
+Do not use Import Sound Pack to replace this sound: it skips existing names.
+The prepared script already repeats Clock Single Strike three, five, or nine
+times where needed. Test those cues and adjust timing/volume as necessary.
+Clock Chimes is a separate quarter-hour cue; this task leaves it unchanged.
+This handoff contains audio only; it does not transfer board or cue settings.

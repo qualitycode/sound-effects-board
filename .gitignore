@@ -8,5 +8,14 @@ Thumbs.db
 # Downloaded sound files are licensed for use in the app, not for republishing
 soundpack/
 *.zip
+handoffs/
+# Track browser source despite the desktop build's dist/ rule.
+!browser/dist/
+!browser/dist/**
+# Private local browser snapshot and development/test artifacts
+browser/dist/local-project/
+browser/snapshot-*/
+browser/__pycache__/
+browser/test-results/
 # Play script and cue list (not ours to republish)
 assets/playScript/

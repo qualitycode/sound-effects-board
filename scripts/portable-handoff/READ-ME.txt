@@ -1,0 +1,26 @@
+WINDOWS SOUNDBOARD HANDOFF
+
+1. Right-click the ZIP > Extract All. Choose Documents as the destination.
+   Open the extracted Soundboard-for-Dallin folder.
+2. Close other Sound Effects Board windows, then double-click
+   Open Soundboard.cmd. ALWAYS use this launcher to save edits in Board.
+3. Use Edit Mode to add sounds or replace recordings. Save each change.
+   Keep existing pads when replacing sounds so script cue links survive.
+4. Close the app. Double-click Make-Return-Zip.cmd.
+5. Send the Soundboard-from-Dallin ZIP (beside this folder) to Larry.
+
+LARRY: Extract the returned ZIP into a NEW folder in Documents. Use its
+Open Soundboard.cmd. That copy contains the updated sounds and cue settings.
+Your installed board remains separate. To send another round, use the
+Make-Return-Zip.cmd in the returned folder. Keep earlier ZIPs as backups.
+Edit one shared version at a time. Keep App, Board and the launcher together.
+No Node.js or developer tools are needed. Windows may warn about this
+unsigned downloaded app. Only run copies received from Larry or Dallin.
+
+List edits and sources/credits in Changes.txt. Browser caches are excluded
+from ZIPs; view preferences such as the selected page may reset.
+
+Milo needs his Mac app; this executable is Windows only. Export Board as
+Sound Pack transfers audio to Mac. For existing sounds, replace recordings
+in Edit Mode because pack import skips matching names. Sound-pack exports
+do not contain script cue assignments.

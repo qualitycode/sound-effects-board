@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'none';">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sound Effects Board ? Browser Preview</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="toolbar">
+    <h1>Sound Effects Board <span class="credit">Larry Maddocks ? Browser preview</span></h1>
+    <div class="toolbar-actions">
+      <button id="padsView" class="btn" type="button" aria-pressed="true">Pads</button>
+      <button id="cuesView" class="btn" type="button" aria-pressed="false">Cues</button>
+      <button id="scriptView" class="btn" type="button" aria-pressed="false">Script</button>
+      <button id="addBtn" class="btn primary hidden" type="button">+ Add Sound</button>
+      <button id="editToggle" class="btn" type="button" aria-pressed="false">Edit Mode: Off</button>
+      <button id="stopAll" class="btn danger" type="button" title="Stop all sounds (Esc)">■ Stop All</button>
+    </div>
+  </header>
+
+  <div class="project-bar"><span id="projectStatus" role="status">Opening your local project?</span><div class="row"><button id="peopleBtn" class="btn" type="button">People &amp; colors</button><button id="exportBtn" class="btn" type="button" disabled>Export backup</button><button id="importBtn" class="btn" type="button" disabled>Import backup</button></div></div>
+  <p id="hint" class="hint"></p>
+  <main id="board" class="board" aria-label="Sound effect pads"></main>
+  <main id="cueBoard" class="board hidden" aria-label="Named cues"></main>
+  <section id="scriptPanel" class="script-panel hidden" aria-label="Script and sound cues">
+    <div class="script-tools">
+      <label>Page <select id="scriptPage" aria-label="Jump to script page"></select></label>
+      <button id="previousCue" class="btn" type="button">Previous cue</button>
+      <button id="nextCue" class="btn" type="button">Next cue</button>
+      <label>Text size <input id="scriptSize" type="range" min="14" max="26" value="18"></label>
+    </div>
+    <div class="script-layout">
+      <article id="scriptText" class="script-text" aria-label="Play dialogue"></article>
+      <aside class="scene-panel" aria-label="Sound controls">
+        <h2 id="sceneTitle">Page sounds</h2><div id="sceneSounds"></div>
+        <h2>Now playing</h2><div id="nowPlaying" aria-live="polite"></div>
+      </aside>
+    </div>
+  </section>
+  <dialog id="cueEditor" class="editor">
+    <form id="cueForm">
+      <h2>Edit cue</h2><p id="cueDescription"></p>
+      <label class="field">Cue name<input id="cueName" type="text" maxlength="180" required></label>
+      <div class="row wrap"><label class="field">Shortcut<input id="cueKey" type="text" maxlength="1" autocomplete="off"></label><label class="field">Responsible person<select id="cuePerson"></select></label><label class="field">Overall cue volume (%)<input id="cueVolume" type="number" min="0" max="300" step="1" value="100" required></label></div>
+      <label class="field">Rehearsal note<textarea id="cueNote" rows="2"></textarea></label><label class="field">Note highlight<input id="cueNoteColor" type="color" value="#fff0a8"></label>
+      <label class="field check"><input id="cueLive" type="checkbox">Live performer cue (instruction only; no recorded actions)</label>
+      <p class="hint">Delay is seconds after clicking the cue. Times repeats a Play action after each recording finishes. Continue keeps an existing loop running. Fade takes 2 seconds. Use scene controls to follow actor timing.</p>
+      <div id="cueActions"></div>
+      <button id="preparedCue" class="btn" type="button">Use prepared actions</button>
+      <button id="addCueAction" class="btn" type="button">+ Add action</button>
+      <p id="cueError" class="error" role="alert"></p>
+      <div class="actions"><button id="cancelCue" class="btn" type="button">Cancel</button><span class="spacer"></span><button id="saveCue" class="btn primary" type="submit">Save</button></div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <dialog id="editor" class="editor">
+    <form id="editorForm" method="dialog" novalidate>
+      <h2 id="editorTitle">Edit Sound</h2>
+
+      <label class="field">Responsible person<select id="fPerson"></select></label>
+      <label class="field">
+        <span>Name</span>
+        <input id="fLabel" type="text" maxlength="100" autocomplete="off" placeholder="e.g. Door Slam">
+      </label>
+
+      <div class="field">
+        <span>Sound file</span>
+        <div class="row">
+          <span id="fSoundName" class="filename">(none chosen)</span>
+          <button id="fSoundPick" class="btn" type="button">Choose…</button>
+          <button id="fRecord" class="btn" type="button">● Record</button>
+          <button id="fSoundTest" class="btn" type="button">▶ Test</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Picture (optional)</span>
+        <div class="row">
+          <img id="fImagePreview" class="thumb hidden" alt="">
+          <span id="fImageName" class="filename">(none)</span>
+          <button id="fImagePick" class="btn" type="button">Choose…</button>
+          <button id="fImageClear" class="btn" type="button">Remove</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Volume: <output id="fVolumeOut">100%</output> (over 100% boosts quiet sounds)</span>
+        <input id="fVolume" type="range" min="0" max="300" value="100">
+      </label>
+
+      <label class="field check">
+        <input id="fLoop" type="checkbox">
+        <span>Loop (click once to start, click again to stop)</span>
+      </label>
+
+      <div class="field">
+        <span>Keyboard shortcut (optional)</span>
+        <div class="row">
+          <input id="fKey" type="text" class="key-input" readonly placeholder="press a key">
+          <button id="fKeyClear" class="btn" type="button">Clear</button>
+        </div>
+      </div>
+
+      <p id="editorError" class="error hidden" role="alert"></p>
+
+      <div class="actions">
+        <button id="fDelete" class="btn danger" type="button">Delete</button>
+        <span class="spacer"></span>
+        <button id="fCancel" class="btn" type="button">Cancel</button>
+        <button id="fSave" class="btn primary" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="passageEditor" class="editor"><form id="passageForm"><h2>Edit script passage</h2><label class="field">Text<textarea id="passageText" rows="7" required></textarea></label><label class="field">Reader<select id="passagePerson"></select></label><label class="field">Note<textarea id="passageNote" rows="3"></textarea></label><label class="field">Note highlight<input id="passageColor" type="color" value="#fff0a8"></label><p class="error" id="passageError"></p><div class="actions"><button type="button" class="btn" id="cancelPassage">Cancel</button><span class="spacer"></span><button class="btn primary" type="submit">Save passage</button></div></form></dialog>
+  <dialog id="peopleEditor" class="editor"><form id="peopleForm"><h2>People &amp; colors</h2><p class="hint">Assign readers and live performers. Names appear alongside their colors.</p><div id="peopleRows"></div><button class="btn" id="addPerson" type="button">+ Add person</button><p class="error" id="peopleError"></p><div class="actions"><button class="btn" id="cancelPeople" type="button">Cancel</button><span class="spacer"></span><button class="btn primary" type="submit">Save people</button></div></form></dialog>
+  <script src="browser-api.js"></script>
+  <script src="script-view.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
