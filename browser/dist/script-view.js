@@ -95,6 +95,11 @@ window.createScriptView = async function (host) {
         ? 'Edit Mode: click a sound direction to assign its actions. Turn Edit Mode off before the show.'
         : 'Click a cue to play its actions. Page controls and Next cue move without playing. Esc stops everything.';
     }
+    if (!$('cueBoard').classList.contains('hidden')) {
+      $('hint').textContent = host.isEditing()
+        ? 'Edit Mode: click a cue to change its name, actions, person, or notes.'
+        : 'Click a cue (or press its key) to play its actions. Esc stops everything.';
+    }
     for (const cue of allCues) {
       const el = cueButtons.get(cue.id);
       const meta = window.browserProject.getCue(cue.id);
