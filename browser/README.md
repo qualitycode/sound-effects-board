@@ -34,3 +34,17 @@ Private snapshots, audio, script, and backups must not be committed or publicly 
 - Script editing is paragraph-based; adding/removing pages or importing an arbitrary new PDF is not yet supported.
 - Renaming/replacing sounds preserves existing assignments. Prepared-action reset still matches original labels; use it deliberately.
 - The imported original sound levels remain available in the sound editor; performance views have no volume sliders. Cue editing adds individual action and overall cue levels.
+
+## Verification
+
+The Windows Chrome integration suite passes using a throwaway profile: imported IDs/assignments, browser playback/repeats/delays, cue gain, loop continuation, fades, Stop All, script/cue notes and people, shortcut collision checks, recording replacement, persistence, backup recovery, and damaged-backup rejection. Pads, Cues, and Script screenshots were reviewed. Desktop JSON/media hashes remained unchanged. Headless playback checks do not replace a listening rehearsal; Mac/browser coverage is still pending.
+
+To rerun, start the preview server, then run this PowerShell command from the project folder (installed Chrome required):
+
+```powershell
+$env:ELECTRON_RUN_AS_NODE = '1'
+$test = Start-Process -FilePath '.\node_modules\electron\dist\electron.exe' -ArgumentList 'browser/test-prototype.cjs' -WindowStyle Hidden -Wait -PassThru
+Get-Content browser/test-results/integration.log
+```
+
+The final log line must be `ALL CHECKS PASSED`; `$test.ExitCode` must be zero. In a restricted agent sandbox, Chrome may need execution permission outside the sandbox. The test never uses your regular browser profile. Results and the test backup contain private project material and are ignored by git.

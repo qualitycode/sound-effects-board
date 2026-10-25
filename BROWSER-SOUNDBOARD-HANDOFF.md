@@ -6,11 +6,22 @@ Updated: October 25, 2026
 
 Replace the awkward Mac/Windows executable and ZIP update workflow with a shared browser soundboard. Keep the play script with embedded cue buttons. Support downloading a complete performance version for offline use.
 
-A local browser prototype has been started following Larry's approval. It is WORK IN PROGRESS and has not passed browser integration testing. No Google Sheet, Drive integration, authentication, hosted site, or offline browser download has been created. The exact hosting and storage architecture still needs selection. Preserve the existing desktop application.
+A local browser prototype is ready for local rehearsal testing following Larry's approval. Browser integration checks pass. No Google Sheet, Drive integration, authentication, hosted site, or offline browser download has been created. The exact hosting and storage architecture still needs selection. Preserve the existing desktop application.
 
-## Current implementation handoff — read before continuing
+## Completed local prototype verification — October 25, 2026
 
-Larry requested this update so he can open a new chat. Stop further feature work in this chat; resume from the state below in the next chat.
+- Fixed script cue rendering: saved cue names, shortcuts, responsible people/colors, live status, and highlighted cue notes now appear beside the script. Corrected Cues view hints and placeholder punctuation.
+- Both sound and cue editors reject shortcuts already assigned to the other type.
+- Installed Chrome runs the integration harness with a disposable profile outside the restricted execution sandbox. No installed Electron files, permissions, desktop source, production site, or DNS were changed. The CDP driver now reports startup failures and bounds endpoint polling; the harness scopes repeated backup input setup correctly.
+- Integration checks pass: 64 imported sounds, 95 cues, 41 pages, actual saved cue actions, real browser audio playback, Stop All, people/readers, passage editing and highlighted notes, uploads, cue metadata/notes, shortcut conflicts, per-action × overall gain, exactly three natural repeats, repeat/delay cancellation, shortcut playback, continuing a loop at its existing level, fade completion, replacement audio preserving IDs/cue links, live instructions without audio, reload persistence, full backup download, damaged-backup rejection, and verified backup recovery. No browser console errors.
+- Reviewed screenshots of Pads, Cues, and Script. Logs, screenshots, and the media-containing test backup remain ignored under `browser/test-results/`.
+- Desktop JSON/media file hashes were unchanged across verification (67 files). Git confirms no changes to `src/`, `main.js`, `preload.js`, or desktop package/build configuration. Browser sources are visible to git; private snapshot and test artifacts are ignored.
+- Launch: double-click `Open Browser Preview.cmd`, keep its console open, and use `http://127.0.0.1:8765`. Python 3 is required. Edits stay in that browser/profile/address; export a backup to retain a separate copy.
+- This completes the approved local prototype milestone. Human listening/rehearsal and Mac/browser coverage remain useful before a performance. Hosted offline launch, publishing, authentication, and Google integration remain separate future work; do not label this prototype Ready offline.
+
+## Earlier implementation handoff — historical, superseded by checks above
+
+The following records the earlier incomplete state for context. Its outstanding local fixes and verification are completed above.
 
 ### New context and approval
 

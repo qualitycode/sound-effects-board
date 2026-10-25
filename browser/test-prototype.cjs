@@ -126,6 +126,19 @@ app.whenReady().then(async () => {
     await setAction('fade', 50);
     await sleep(2100);
     check(await js(`!document.querySelector('#board .playing') && window.__gains.at(-1).gain.value < .001`), 'fade ramps down and stops playback');
+    await js(`(async () => {
+      window.__pulseBefore = window.browserProject.snapshot().pads.find(p => p.label === 'Test Pulse');
+      const bytes = await (await fetch(window.browserProject.mediaUrl(window.__pulseBefore.sound))).arrayBuffer();
+      const picked = await window.api.saveRecording(bytes), originalPick = window.api.pickMedia;
+      window.api.pickMedia = async () => picked;
+      document.getElementById('editToggle').click(); document.getElementById('padsView').click();
+      document.querySelector('#board [data-id="' + window.__pulseBefore.id + '"]').click();
+      document.getElementById('fSoundPick').click(); await new Promise(r => setTimeout(r, 50));
+      window.api.pickMedia = originalPick; document.getElementById('editorForm').requestSubmit();
+    })()`);
+    await sleep(100);
+    check(await js(`window.browserProject.snapshot().pads.find(p => p.id === window.__pulseBefore.id).sound !== window.__pulseBefore.sound && window.browserProject.snapshot().assignments['p12-c1'][0].padId === window.__pulseBefore.id`), 'replacing a recording preserves sound ID and cue links');
+    await js(`document.getElementById('cuesView').click(); document.getElementById('editToggle').click()`);
     await js("document.getElementById('editToggle').click(); document.querySelector('#cueBoard [data-cue-id=\"p12-c1\"]').click(); document.getElementById('cueLive').checked = true; document.getElementById('cueName').value = 'Piano begins'; document.getElementById('cueForm').requestSubmit()");
     await sleep(100);
     await js("document.getElementById('editToggle').click(); window.__beforeLive = window.__playCalls; document.querySelector('#cueBoard [data-cue-id=\"p12-c1\"]').click()");
@@ -169,6 +182,10 @@ app.whenReady().then(async () => {
     await js('window.browserProject.ready');
     await sleep(200);
     check(await js("window.browserProject.snapshot().pads.length === 65 && window.browserProject.getCue('p12-c1').name === 'Piano begins'"), 'verified backup restores successfully');
+    await js("document.getElementById('padsView').click()");
+    fs.writeFileSync(path.join(results, 'pads-preview.png'), (await win.webContents.capturePage()).toPNG());
+    await js("document.getElementById('cuesView').click()");
+    fs.writeFileSync(path.join(results, 'cues-preview.png'), (await win.webContents.capturePage()).toPNG());
     await js("document.getElementById('scriptView').click(); document.getElementById('scriptPage').value = '12'; document.getElementById('scriptPage').dispatchEvent(new Event('change'))");
     fs.writeFileSync(path.join(results, 'script-preview.png'), (await win.webContents.capturePage()).toPNG());
     check(errors.length === 0, 'no browser console errors: ' + errors.join('; '));
