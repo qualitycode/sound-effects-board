@@ -91,6 +91,13 @@ class BrowserWindow {
       const result = await send('Page.captureScreenshot', { format: 'png' });
       return { toPNG: () => Buffer.from(result.data, 'base64') };
     };
+    this.webContents.setOffline = async offline => {
+      await send('Network.enable');
+      await send('Network.emulateNetworkConditions', { offline, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    };
+    this.webContents.clearTestStorage = async origin => {
+      await send('Storage.clearDataForOrigin', { origin, storageTypes: 'indexeddb,local_storage,service_workers,cache_storage' });
+    };
   }
   async loadURL(url) {
     const done = new Promise(resolve => this.webContents.once('did-finish-load', resolve));

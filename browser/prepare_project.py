@@ -6,7 +6,7 @@ import mimetypes
 import os
 from pathlib import Path
 import shutil
-import tempfile
+import uuid
 
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent
@@ -50,7 +50,11 @@ def prepare(source=None):
     payload = dict(schemaVersion=1, title=script.get('title', 'Sound Effects Board'), pads=pads,
                    script=script, assignments=assignments, people=[], passages={}, cues={})
     files = []
-    staging = Path(tempfile.mkdtemp(prefix='snapshot-', dir=ROOT))
+    # Inherit workspace permissions. Python's Windows mkdtemp uses an owner-only
+    # ACL, which survives rename and can block the user's normal preview server
+    # when an agent account prepared the snapshot.
+    staging = ROOT / ('snapshot-' + uuid.uuid4().hex)
+    staging.mkdir()
     try:
         (staging / 'media').mkdir()
         names = {p.get(kind) for p in pads for kind in ('sound', 'image')} - {None, ''}

@@ -1,5 +1,7 @@
 # Local browser prototype
 
+The Node/Nginx hosted version for `/sb/` is prepared separately in [hosted/README.md](hosted/README.md). It adds admin publishing, explicit performance updates, and offline app reopening. It has not been deployed. The instructions below still launch the unchanged local-preview workflow.
+
 From the project folder, double-click **Open Browser Preview.cmd**. Python 3 is required on this development computer. Keep the console window open and use the printed address, normally http://127.0.0.1:8765. Close other preview tabs while editing.
 
 This is a local prototype, not the final hosted app. No DigitalOcean, DNS, Google account, or production deployment is changed. The existing desktop app and its saved files are untouched.
@@ -11,7 +13,9 @@ This is a local prototype, not the final hosted app. No DigitalOcean, DNS, Googl
 - **Cues**: large named cue buttons, sharing their names and assignments with the script buttons.
 - **Edit Mode**: click a sound to rename it, replace/upload audio or a picture, set its shortcut, and assign its operator. Click a cue to edit its name, person, shortcut, recorded actions, levels, or rehearsal note. Existing action levels initially use the imported sound's level. Overall cue volume multiplies each action's level. Continuing an already-running loop retains its current level.
 - **People & colors**: add/rename people and choose their colors; assign them in sound, cue, and script-passage editors. Readers' names and color markers appear on assigned passages.
-- In Script Edit Mode, click a dialogue paragraph to edit its wording, assign a reader, or add a highlighted note. Paragraph IDs remain stable.
+- In Script Edit Mode, select script words (including SFX cue text) and press **1 = yellow**, **2 = pink**, or **3 = green**. Click or drag across a dashed blank line below a passage/cue to mark empty space. Use **0** or **Clear highlight** to remove selected highlighting; toolbar color buttons also work. Selections may span paragraphs. Highlights remain visible during performance and survive reloads, backups, and hosted publishing.
+- Use **Edit passage** to change wording, assign a reader, or add a note. Changing wording clears that passage's text highlights and blank-line color; reselect the corrected words to highlight again. Notes and reader assignments preserve highlights. Renaming a cue clears its highlights. Paragraph IDs remain stable.
+- Keys **1, 2, and 3** are reserved for highlighting and never trigger audio. Old sound/cue assignments to those keys are cleared when projects or backups load; choose other keys if needed.
 - A **live performer cue** displays an instruction and selects it without playing recorded audio.
 - **Export backup** saves a JSON file containing the entire edited project and recordings. **Import backup** verifies media hashes and atomically replaces this browser's copy, with confirmation. Retain a backup before clearing browser storage.
 

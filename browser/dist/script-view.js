@@ -15,6 +15,20 @@ window.createScriptView = async function (host) {
   let selectedCue = null;
   let draftCue = null;
   const cueButtons = new Map();
+  const highlighter = window.createScriptHighlighter(host);
+  function colorCue(el, person) {
+    el.classList.toggle('person-cue', Boolean(person));
+    if (!person) {
+      el.style.removeProperty('--cue-person-color');
+      el.style.removeProperty('--cue-person-text');
+      return;
+    }
+    const rgb = person.color.slice(1).match(/../g).map(value => parseInt(value, 16) / 255);
+    const linear = rgb.map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+    const luminance = linear[0] * .2126 + linear[1] * .7152 + linear[2] * .0722;
+    el.style.setProperty('--cue-person-color', person.color);
+    el.style.setProperty('--cue-person-text', luminance > .179 ? '#000000' : '#ffffff');
+  }
   const allCues = data.pages.flatMap(page => page.blocks.filter(b => b.cue).map(b => ({ ...b, page: page.page })));
   if (!data.pages.some(p => p.page === selectedPage)) selectedPage = data.pages[0]?.page || 1;
   if (!data.pages.length) $('scriptText').textContent = 'No script is loaded. Choose File > Import Play Script and select the prepared script.json file. Then assign sounds in Edit Mode.';
@@ -92,7 +106,7 @@ window.createScriptView = async function (host) {
   function refresh() {
     if (!$('scriptPanel').classList.contains('hidden')) {
       $('hint').textContent = host.isEditing()
-        ? 'Edit Mode: click a sound direction to assign its actions. Turn Edit Mode off before the show.'
+        ? 'Edit Mode: select words or a blank line; 1 = yellow, 2 = pink, 3 = green, 0 = clear. Use Edit passage to change wording.'
         : 'Click a cue to play its actions. Page controls and Next cue move without playing. Esc stops everything.';
     }
     if (!$('cueBoard').classList.contains('hidden')) {
@@ -105,7 +119,12 @@ window.createScriptView = async function (host) {
       const meta = window.browserProject.getCue(cue.id);
       const person = window.browserProject.person(meta.personId);
       el.textContent = `${host.isEditing() ? 'Edit' : '▶'} ${meta.name || cue.cue}${person ? ' · ' + person.name : ''}${meta.key ? ' · Key ' + meta.key : ''}${meta.live ? ' · Live performer' : ''}${cueReady(cue) ? '' : ' — needs assignment'}`;
-      el.style.borderLeft = person ? `8px solid ${person.color}` : '';
+      const cueWords = document.createElement('span');
+      highlighter.renderText(cueWords, cue.id, meta.name || cue.cue);
+      const fullLabel = el.textContent;
+      const offset = host.isEditing() ? 'Edit '.length : '\u25b6 '.length;
+      el.replaceChildren(document.createTextNode(fullLabel.slice(0, offset)), cueWords, document.createTextNode(fullLabel.slice(offset + (meta.name || cue.cue).length)));
+      colorCue(el, person);
       el.title = meta.live ? 'Live performer instruction' : actionSummary(cue) || 'No sounds assigned';
       const note = document.querySelector(`[data-note-for="${CSS.escape(cue.id)}"]`);
       note.textContent = meta.note ?? cue.note ?? '';
@@ -116,6 +135,7 @@ window.createScriptView = async function (host) {
     }
     renderCueBoard();
     refreshPassages();
+    highlighter.refresh();
     refreshScene();
   }
   function addAction(action = { padId: '', action: 'play' }) {
@@ -192,16 +212,17 @@ window.createScriptView = async function (host) {
     for (const block of page.blocks) {
       if (block.cue) {
         const cue = allCues.find(c => c.id === block.id);
-        const el = button(block.cue, () => runCue(cue), 'btn script-cue');
+        const el = button(block.cue, () => { if (!highlighter.hasSelection()) runCue(cue); }, 'btn script-cue');
         el.dataset.cueId = block.id; cueButtons.set(block.id, el); section.append(el);
         const note = document.createElement('p'); note.className = 'cue-note user-note'; note.dataset.noteFor = block.id; section.append(note);
       } else {
         const text = document.createElement('p'); text.className = 'dialogue'; text.dataset.blockId = block.id;
         text.textContent = block.text; section.append(text);
-        text.addEventListener('click', () => { if (host.isEditing()) editPassage(block); });
-        text.addEventListener('keydown', event => { if (host.isEditing() && ['Enter', ' '].includes(event.key)) { event.preventDefault(); editPassage(block); } });
+        const edit = button('Edit passage', () => { if (host.isEditing()) editPassage(block); }, 'btn edit-passage');
+        section.append(edit);
         const note = document.createElement('p'); note.className = 'user-note'; note.dataset.passageNote = block.id; section.append(note);
       }
+      highlighter.addBlank(section, block.id);
     }
     $('scriptText').append(section);
   }
@@ -250,13 +271,13 @@ window.createScriptView = async function (host) {
       const person = window.browserProject.person(meta.personId);
       el.replaceChildren();
       if (person) { const label = document.createElement('strong'); label.className = 'reader-label'; label.textContent = person.name; el.append(label); }
-      el.append(document.createTextNode(meta.text ?? block.text ?? ''));
+      const words = document.createElement('span');
+      highlighter.renderText(words, block.id, meta.text ?? block.text ?? '');
+      el.append(words);
       el.style.borderLeft = person ? `5px solid ${person.color}` : '';
       el.style.backgroundColor = person ? person.color + '18' : '';
       el.classList.toggle('editable-passage', host.isEditing());
-      el.tabIndex = host.isEditing() ? 0 : -1;
-      if (host.isEditing()) { el.setAttribute('role', 'button'); el.setAttribute('aria-label', 'Edit script passage'); }
-      else { el.removeAttribute('role'); el.removeAttribute('aria-label'); }
+      el.removeAttribute('role'); el.removeAttribute('aria-label');
       const note = document.querySelector(`[data-passage-note="${CSS.escape(block.id)}"]`);
       note.textContent = meta.note || ''; note.hidden = !meta.note; note.style.backgroundColor = meta.color || '#fff0a8';
     }
@@ -275,9 +296,12 @@ window.createScriptView = async function (host) {
   $('passageForm').addEventListener('submit', async event => {
     event.preventDefault();
     try {
+      const previous = window.browserProject.getPassage(passageDraft.id);
+      const changed = $('passageText').value !== (previous.text ?? passageDraft.text ?? '');
       await window.browserProject.savePassage(passageDraft.id, { text: $('passageText').value,
         personId: $('passagePerson').value, note: $('passageNote').value, color: $('passageColor').value });
-      $('passageEditor').close(); refreshPassages();
+      $('passageEditor').close(); refreshPassages(); highlighter.refresh();
+      if (changed && (previous.highlights?.length || previous.blankColor)) host.toast('Text changed. Please reapply highlights in this passage.');
     } catch (err) { $('passageError').textContent = err.message; }
   });
   function renderCueBoard() {
@@ -287,13 +311,13 @@ window.createScriptView = async function (host) {
       const el = button('', () => runCue(cue), 'pad cue-card'); el.dataset.cueId = cue.id;
       const title = document.createElement('strong'); title.textContent = meta.name || cue.cue;
       const info = document.createElement('small'); info.textContent = `Page ${cue.page} · ${person?.name || 'Unassigned'}${meta.key ? ' · Key ' + meta.key : ''}${meta.live ? ' · Live performer' : ''}${cueReady(cue) ? '' : ' · Needs assignment'}`;
-      el.append(title, info); el.style.borderLeft = `8px solid ${person?.color || '#6c63ff'}`;
+      el.append(title, info); colorCue(el, person);
       el.classList.toggle('editing', host.isEditing()); $('cueBoard').append(el);
     }
   }
   window.addEventListener('project-people-changed', refresh);
   refresh(); setView(localStorage.getItem('boardView') || 'pads');
-  return { refresh, refreshPlayback, runShortcut: key => { const cue = allCues.find(c => window.browserProject.getCue(c.id).key === key); if (!cue) return false; runCue(cue); return true; }, reloadAssignments: async () => {
+  return { refresh, refreshPlayback, runShortcut: key => { if (['1', '2', '3'].includes(key)) return false; const cue = allCues.find(c => window.browserProject.getCue(c.id).key === key); if (!cue) return false; runCue(cue); return true; }, reloadAssignments: async () => {
     try { assignments = (await window.api.loadScript()).assignments; refresh(); }
     catch (err) { host.toast('Could not reload cue assignments: ' + err.message); }
   } };

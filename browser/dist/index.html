@@ -118,6 +118,7 @@
   <dialog id="passageEditor" class="editor"><form id="passageForm"><h2>Edit script passage</h2><label class="field">Text<textarea id="passageText" rows="7" required></textarea></label><label class="field">Reader<select id="passagePerson"></select></label><label class="field">Note<textarea id="passageNote" rows="3"></textarea></label><label class="field">Note highlight<input id="passageColor" type="color" value="#fff0a8"></label><p class="error" id="passageError"></p><div class="actions"><button type="button" class="btn" id="cancelPassage">Cancel</button><span class="spacer"></span><button class="btn primary" type="submit">Save passage</button></div></form></dialog>
   <dialog id="peopleEditor" class="editor"><form id="peopleForm"><h2>People &amp; colors</h2><p class="hint">Assign readers and live performers. Names appear alongside their colors.</p><div id="peopleRows"></div><button class="btn" id="addPerson" type="button">+ Add person</button><p class="error" id="peopleError"></p><div class="actions"><button class="btn" id="cancelPeople" type="button">Cancel</button><span class="spacer"></span><button class="btn primary" type="submit">Save people</button></div></form></dialog>
   <script src="browser-api.js"></script>
+  <script src="script-highlights.js"></script>
   <script src="script-view.js"></script>
   <script src="renderer.js"></script>
 </body>

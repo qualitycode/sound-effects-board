@@ -17,5 +17,8 @@ browser/dist/local-project/
 browser/snapshot-*/
 browser/__pycache__/
 browser/test-results/
+backup/
+browser/server-data/
+browser/.env
 # Play script and cue list (not ours to republish)
 assets/playScript/

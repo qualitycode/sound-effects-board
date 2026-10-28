@@ -317,6 +317,7 @@
   }
 
   function setEditMode(on) {
+    if (on && window.hostedBoard && !window.hostedBoard.canEdit()) return toast('Log in as admin while online to edit.');
     editMode = on;
     $('editToggle').textContent = `Edit Mode: ${on ? 'On' : 'Off'}`;
     $('editToggle').setAttribute('aria-pressed', String(on));
@@ -551,6 +552,7 @@
     const label = $('fLabel').value.trim() || (draft.soundName || '').replace(/\.[^.]+$/, '');
     if (!draft.sound) return showEditorError('Please choose a sound file.');
     if (!label) return showEditorError('Please give this sound a name.');
+    if (['1', '2', '3'].includes(draft.key)) return showEditorError('Keys 1, 2 and 3 are reserved for script highlighting.');
     if (draft.key) {
       const clash = pads.find((p) => p.key === draft.key && p.id !== draft.id);
       if (clash) return showEditorError(`Key ${draft.key} is already used by "${clash.label}".`);
@@ -592,6 +594,10 @@
   window.addEventListener('project-people-changed', render);
   window.addEventListener('beforeunload', stopAll);
   window.addEventListener('project-stop', stopAll);
+  window.addEventListener('project-readonly', () => {
+    setEditMode(false);
+    for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
+  });
   // ---------- Wiring ----------
 
   $('editToggle').addEventListener('click', () => setEditMode(!editMode));
@@ -661,7 +667,7 @@
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if (e.key === 'Escape') return stopAll();
     if (editMode || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key.length !== 1) return;
+    if (e.key.length !== 1 || ['1', '2', '3'].includes(e.key)) return;
     if (scriptView?.runShortcut(e.key.toUpperCase())) { e.preventDefault(); return; }
     const pad = pads.find((p) => p.key && p.key === e.key.toUpperCase());
     if (pad) {

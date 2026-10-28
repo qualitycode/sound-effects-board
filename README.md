@@ -1,5 +1,7 @@
 # Sound Effects Board
 
+For the browser soundboard and the current server deployment, **read [BROWSER-SOUNDBOARD-HANDOFF.md](BROWSER-SOUNDBOARD-HANDOFF.md) first**. It records the latest confirmed state and what the next chat should do. Hosted setup details are in [browser/hosted/README.md](browser/hosted/README.md); local preview instructions are in [browser/README.md](browser/README.md). The desktop application documented below is preserved.
+
 An offline soundboard for a radio play. Click a pad (a picture and/or name) and its sound effect plays. It runs as a normal Mac app and needs no internet connection.
 
 ## Using the app

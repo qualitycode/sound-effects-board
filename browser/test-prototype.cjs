@@ -44,7 +44,7 @@ app.whenReady().then(async () => {
       document.getElementById('peopleForm').requestSubmit();`);
     await sleep(100);
     check(await js("window.browserProject.snapshot().people.length === 1"), 'people saved with stable IDs');
-    await js("document.getElementById('editToggle').click(); document.getElementById('scriptView').click(); document.querySelector('.dialogue').click()");
+    await js("document.getElementById('editToggle').click(); document.getElementById('scriptView').click(); document.querySelector('.edit-passage').click()");
     await js(`document.getElementById('passageText').value = 'A rehearsal passage edited in the browser.';
       document.getElementById('passageNote').value = 'Pause here for the piano.';
       document.getElementById('passagePerson').selectedIndex = 1;

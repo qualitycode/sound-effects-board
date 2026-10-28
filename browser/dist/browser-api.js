@@ -2,13 +2,14 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
+  const hosted = window.hostedBoard;
   const urls = new Map();
   let db, project;
   let writes = Promise.resolve();
   const clone = value => structuredClone(value);
   const status = text => { $('projectStatus').textContent = text; };
   const openDB = () => new Promise((resolve, reject) => {
-    const req = indexedDB.open('larry-soundboard-browser-v1', 1);
+    const req = indexedDB.open(hosted ? 'larry-soundboard-hosted-v1' : 'larry-soundboard-browser-v1', 1);
     req.onupgradeneeded = () => { req.result.createObjectStore('project'); req.result.createObjectStore('media'); };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -33,12 +34,15 @@
   }
   function save(change) {
     return enqueue(async () => {
+      if (hosted) await hosted.assertAdmin();
       const next = clone(project);
       change(next);
+      validate(next);
       next.modifiedAt = new Date().toISOString();
       await transaction(tx => tx.objectStore('project').put(next, 'active'));
       project = next;
-      status(`${project.title} · Saved on this browser · Local preview`);
+      if (hosted) hosted.showStatus(project);
+      else status(`${project.title} · Saved on this browser · Local preview`);
     });
   }
   const validColor = color => /^#[0-9a-f]{6}$/i.test(color);
@@ -63,6 +67,21 @@
     }
     for (const cue of Object.values(p.cues)) if (typeof cue.name !== 'string' || !Number.isFinite(cue.volume) || cue.volume < 0 || cue.volume > 3 || typeof cue.key !== 'string' || cue.key.length > 1) throw new Error('Invalid cue settings.');
     for (const person of p.people) if (typeof person.id !== 'string' || typeof person.name !== 'string' || !validColor(person.color)) throw new Error('Invalid person or color.');
+    for (const meta of Object.values(p.passages)) {
+      if (!meta || typeof meta !== 'object') throw new Error('Invalid passage.');
+      if (meta.blankColor !== undefined && !['', '1', '2', '3'].includes(meta.blankColor)) throw new Error('Invalid blank highlight.');
+      if (meta.highlights !== undefined) {
+        if (!Array.isArray(meta.highlights) || typeof meta.highlightText !== 'string') throw new Error('Invalid highlights.');
+        let end = 0;
+        for (const r of meta.highlights) {
+          if (!Number.isInteger(r.start) || !Number.isInteger(r.end) || r.start < end || r.end <= r.start ||
+              r.end > meta.highlightText.length || !['1', '2', '3'].includes(r.color)) throw new Error('Invalid highlight range.');
+          end = r.end;
+        }
+      }
+    }
+    // Older projects and backups may still assign these reserved keys.
+    for (const item of [...p.pads, ...Object.values(p.cues)]) if (['1', '2', '3'].includes(item.key)) item.key = '';
   }
   async function digest(blob) {
     return [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -85,6 +104,7 @@
   }
   async function storeFile(blob, original) {
     await ready;
+    if (hosted) await hosted.assertAdmin();
     const ext = original.match(/\.[a-z0-9]+$/i)?.[0].toLowerCase() || '.wav';
     const name = crypto.randomUUID() + ext;
     await enqueue(() => transaction(tx => tx.objectStore('media').put(blob, name)));
@@ -93,20 +113,28 @@
   }
   const ready = (async () => {
     try {
+      if (hosted) await hosted.ready;
       db = await openDB();
       project = await read('project', 'active');
       const files = new Map();
       if (!project) {
-        const res = await fetch('local-project/project.json', { cache: 'no-store' });
-        if (!res.ok) throw new Error('Start with Open Browser Preview.cmd to prepare your board copy.');
-        const seed = await res.json();
+        let seed;
+        if (hosted) seed = await hosted.seed();
+        else {
+          const res = await fetch('local-project/project.json', { cache: 'no-store' });
+          if (!res.ok) throw new Error('The local board copy is unavailable. Check the preview console for a missing-file or permissions error, then restart Open Browser Preview.cmd.');
+          seed = await res.json();
+        }
         validate(seed.project);
         for (let i = 0; i < seed.files.length; i++) {
           const item = seed.files[i];
           status(`Copying recordings into this browser… ${i + 1}/${seed.files.length}`);
-          const res = await fetch(`local-project/media/${encodeURIComponent(item.name)}`);
-          if (!res.ok) throw new Error(`Missing recording: ${item.name}`);
-          const blob = new Blob([await res.arrayBuffer()], { type: item.mime });
+          let blob = item.blob;
+          if (!blob) {
+            const res = await fetch(`local-project/media/${encodeURIComponent(item.name)}`);
+            if (!res.ok) throw new Error(`Missing recording: ${item.name}`);
+            blob = new Blob([await res.arrayBuffer()], { type: item.mime });
+          }
           if (await digest(blob) !== item.sha256) throw new Error(`Recording verification failed: ${item.name}`);
           files.set(item.name, blob);
         }
@@ -126,7 +154,8 @@
       }
       hydrate(files);
       $('exportBtn').disabled = $('importBtn').disabled = false;
-      status(`${project.title} · Saved on this browser · Local preview`);
+      if (hosted) hosted.showStatus(project);
+      else status(`${project.title} · Saved on this browser · Local preview`);
     } catch (err) {
       status(`Could not open project: ${err.message}`);
       throw err;
@@ -136,6 +165,30 @@
   ready.catch(() => {});
   window.browserProject = {
     ready,
+    async createBackup() {
+      await ready; await writes;
+      const snapshot = clone(project), media = [];
+      for (const name of references(snapshot)) {
+        const blob = await read('media', name);
+        if (!blob) throw new Error(`Missing media: ${name}`);
+        media.push({ name, mime: blob.type, sha256: await digest(blob), base64: await toBase64(blob) });
+      }
+      return { format: 'larry-soundboard-backup-v1', project: snapshot, media };
+    },
+    async installSeed(seed) {
+      validate(seed.project);
+      const files = new Map();
+      for (const item of seed.files) {
+        if (typeof item.name !== 'string' || files.has(item.name) || await digest(item.blob) !== item.sha256) throw new Error('Damaged performance media. Previous version retained.');
+        files.set(item.name, item.blob);
+      }
+      for (const name of references(seed.project)) if (!files.has(name)) throw new Error(`Missing media: ${name}`);
+      await enqueue(() => transaction(tx => {
+        tx.objectStore('media').clear();
+        for (const [name, blob] of files) tx.objectStore('media').put(blob, name);
+        tx.objectStore('project').put(seed.project, 'active');
+      }));
+    },
     mediaUrl(name) { if (!urls.has(name)) throw new Error(`Media not loaded: ${name}`); return urls.get(name); },
     person(id) { return project?.people.find(p => p.id === id); },
     personOptions(select, value) {
@@ -145,10 +198,45 @@
     },
     getCue(id) { return clone(project.cues[id] || {}); },
     getPassage(id) { return clone(project.passages[id] || {}); },
-    async savePassage(id, value) { await save(p => { p.passages[id] = clone(value); }); },
-    async saveCue(id, meta, actions) { await save(p => { p.cues[id] = clone(meta); p.assignments[id] = clone(actions); }); },
+    async savePassage(id, value) { await save(p => {
+      const previous = p.passages[id] || {};
+      const block = p.script.pages.flatMap(page => page.blocks).find(block => block.id === id);
+      const changed = value.text !== undefined && value.text !== (previous.text ?? block?.text ?? '');
+      p.passages[id] = { ...previous, ...clone(value) };
+      if (changed) { delete p.passages[id].highlights; delete p.passages[id].highlightText; delete p.passages[id].blankColor; }
+    }); },
+    async saveCue(id, meta, actions) { await save(p => {
+      const block = p.script.pages.flatMap(page => page.blocks).find(block => block.id === id);
+      if (meta.name !== (p.cues[id]?.name || block?.cue) && p.passages[id]) {
+        delete p.passages[id].highlights; delete p.passages[id].highlightText; delete p.passages[id].blankColor;
+      }
+      p.cues[id] = clone(meta); p.assignments[id] = clone(actions);
+    }); },
+    async applyHighlights(parts, color) { await save(p => {
+      if (!['', '1', '2', '3'].includes(color)) throw new Error('Invalid highlight color.');
+      for (const part of parts) {
+        const block = p.script.pages.flatMap(page => page.blocks).find(block => block.id === part.id);
+        if (!block) throw new Error('Script passage is unavailable.');
+        const meta = p.passages[part.id] ||= {};
+        if (part.blank) { meta.blankColor = color; continue; }
+        const text = block.cue ? p.cues[part.id]?.name || block.cue : meta.text ?? block.text ?? '';
+        if (part.text !== text) throw new Error('Script text changed. Select the words again.');
+        const ranges = meta.highlightText === text ? meta.highlights || [] : [];
+        const next = [];
+        for (const r of ranges) {
+          if (r.end <= part.start || r.start >= part.end) next.push(r);
+          else {
+            if (r.start < part.start) next.push({ ...r, end: part.start });
+            if (r.end > part.end) next.push({ ...r, start: part.end });
+          }
+        }
+        if (color) next.push({ start: part.start, end: part.end, color });
+        meta.highlightText = text; meta.highlights = next.sort((a, b) => a.start - b.start);
+      }
+    }); },
     shortcutClash(key, id) {
       if (!key) return '';
+      if (['1', '2', '3'].includes(key)) return 'Keys 1, 2 and 3 are reserved for script highlighting.';
       const pad = project.pads.find(p => p.key === key);
       if (pad) return `Key ${key} is used by sound “${pad.label}”.`;
       return Object.entries(project.cues).some(([cueId, c]) => cueId !== id && c.key === key) ? `Key ${key} is used by another cue.` : '';
@@ -175,14 +263,7 @@
   $('exportBtn').addEventListener('click', async () => {
     $('exportBtn').disabled = true;
     try {
-      await ready; await writes;
-      const snapshot = clone(project), media = [];
-      for (const name of references(snapshot)) {
-        const blob = await read('media', name);
-        if (!blob) throw new Error(`Missing media: ${name}`);
-        media.push({ name, mime: blob.type, sha256: await digest(blob), base64: await toBase64(blob) });
-      }
-      const blob = new Blob([JSON.stringify({ format: 'larry-soundboard-backup-v1', project: snapshot, media })], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(await window.browserProject.createBackup())], { type: 'application/json' });
       const url = URL.createObjectURL(blob), a = document.createElement('a');
       a.href = url; a.download = `Soundboard-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -191,6 +272,7 @@
   });
   $('importBtn').addEventListener('click', async () => {
     try {
+      if (hosted) await hosted.assertAdmin();
       const file = await chooseFile('.json,application/json');
       if (!file) return;
       if (document.querySelector('dialog[open]')) throw new Error('Save or cancel the open editor first.');
@@ -200,6 +282,7 @@
       const backup = JSON.parse(await file.text());
       if (backup.format !== 'larry-soundboard-backup-v1' || !Array.isArray(backup.media)) throw new Error('Unsupported backup file.');
       validate(backup.project);
+      if (hosted) { delete backup.project.downloadedVersion; backup.project.modifiedAt = new Date().toISOString(); }
       const files = new Map();
       for (const item of backup.media) {
         if (typeof item.name !== 'string' || /[\\/]/.test(item.name) || files.has(item.name) || typeof item.base64 !== 'string') throw new Error('Invalid or duplicate backup media.');
@@ -225,7 +308,7 @@
     row.append(name, color); $('peopleRows').append(row);
   }
   $('peopleBtn').addEventListener('click', async () => {
-    try { await ready; peopleDraft = clone(project.people); $('peopleRows').replaceChildren(); peopleDraft.forEach(personRow); $('peopleError').textContent = ''; $('peopleEditor').showModal(); }
+    try { await ready; if (hosted) await hosted.assertAdmin(); peopleDraft = clone(project.people); $('peopleRows').replaceChildren(); peopleDraft.forEach(personRow); $('peopleError').textContent = ''; $('peopleEditor').showModal(); }
     catch (err) { error(err); }
   });
   $('addPerson').addEventListener('click', () => {
